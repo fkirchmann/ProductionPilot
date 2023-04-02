@@ -16,6 +16,9 @@ docker-compose up
   - Batteries included! This stack also runs a postgres database and an [IIoTranslator](https://github.com/fkirchmann/IIoTranslator) OPC UA server for you. You can edit the [compose file](docker-compose.yml) to use your own database and/or OPC UA server.
 4. You can now access ProductionPilot at http://localhost:8080
 
+## REST API
+The application exposes a REST API. Check out ``/api-docs/v1/swagger-ui/index.html`` on a running instance, or click [here](http://localhost:8080/api-docs/v1/swagger-ui/index.html) to access it directly if you're running the application locally.
+
 ## Tech Stack
 - Java 17
 - Spring Boot 2.7
