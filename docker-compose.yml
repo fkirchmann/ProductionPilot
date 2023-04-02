@@ -1,0 +1,71 @@
+version: "3.9"
+services:
+  productionpilot:
+    build:
+      context: .
+      args:
+        DOCKER_BUILDKIT: 1
+    environment:
+      # This is just to get up and running quickly - for production,
+      # place an application.properties file in the config volume and set the properties there
+      - spring_datasource_url=jdbc:postgresql://postgres:5432/productionpilot
+      - spring_datasource_username=productionpilot
+      - spring_datasource_password=productionpilot
+      - com_productionpilot_opc_server_url=opc.tcp://iiotranslator:4840/
+      - com_productionpilot_opc_server_hostname-override=iiotranslator
+      - com_productionpilot_opc_server_username=opc
+      - com_productionpilot_opc_server_password=opc
+      - com_productionpilot_opc_server_driver=raw
+    ports:
+      - "8080:8080"
+    volumes:
+      - productionpilot-config:/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - productionpilot-network
+
+  iiotranslator:
+    build:
+      context: https://github.com/fkirchmann/IIoTranslator.git#main
+      args:
+        DOCKER_BUILDKIT: 1
+    environment:
+      # This is just to get up and running quickly - for production,
+      # place an application.properties file in the config volume and set the properties there
+      - iiot_opcua_username=opc
+      - iiot_opcua_password=opc
+      - iiot_devices_ExampleDevice1_driver=test
+    ports:
+      - "4840:4840"
+    volumes:
+      - iiotranslator-config:/config
+    networks:
+      - productionpilot-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: productionpilot
+      POSTGRES_PASSWORD: productionpilot
+      POSTGRES_DB: productionpilot
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - productionpilot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U productionpilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  productionpilot-config:
+  iiotranslator-config:
+  postgres-data:
+
+networks:
+  productionpilot-network:
