@@ -39,7 +39,7 @@ deploy-development:
   script:
     - docker pull "$CI_REGISTRY_IMAGE${tag}"
     - docker rm -f productionpilot-development || true
-    - docker run -d -v productionpilot_development:/config --network $CI_NET --env TZ=$CI_TZ --name productionpilot-development "$CI_REGISTRY_IMAGE${tag}"
+    - docker run -d -v productionpilot_development:/config --restart unless-stopped --network $CI_NET --env TZ=$CI_TZ --name productionpilot-development "$CI_REGISTRY_IMAGE${tag}"
   tags:
     - productionpilot-dev-runner
   rules:
@@ -52,7 +52,7 @@ deploy-production:
   script:
     - docker pull "$CI_REGISTRY_IMAGE${tag}"
     - docker rm -f productionpilot-production || true
-    - docker run -d -v productionpilot_production:/config --network $CI_NET --env TZ=$CI_TZ --name productionpilot-production "$CI_REGISTRY_IMAGE${tag}"
+    - docker run -d -v productionpilot_production:/config --restart unless-stopped --network $CI_NET --env TZ=$CI_TZ --name productionpilot-production "$CI_REGISTRY_IMAGE${tag}"
   tags:
     - productionpilot-prod-runner
   rules:
