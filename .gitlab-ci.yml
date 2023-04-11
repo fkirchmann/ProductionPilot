@@ -4,6 +4,7 @@ stages:
   - deploy-production
 
 variables:
+  # Improves CI speed by allowing cached docker layers to be reused between builds
   DOCKER_DRIVER: overlay2
 
 build:
