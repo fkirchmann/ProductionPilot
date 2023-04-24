@@ -25,6 +25,7 @@ import org.eclipse.milo.opcua.stack.core.types.enumerated.BrowseResultMask;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.NodeClass;
 import org.eclipse.milo.opcua.stack.core.types.enumerated.TimestampsToReturn;
 import org.eclipse.milo.opcua.stack.core.types.structured.BrowseDescription;
+import org.eclipse.milo.opcua.stack.core.types.structured.BrowseResult;
 import org.eclipse.milo.opcua.stack.core.types.structured.ReadValueId;
 import org.eclipse.milo.opcua.stack.core.types.structured.ReferenceDescription;
 import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
@@ -32,6 +33,7 @@ import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
 import javax.annotation.Nullable;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -144,7 +146,26 @@ public class MiloOpcConnection implements OpcConnection {
         List<List<ReferenceDescription>> references;
         try {
             references = client.browse(browse).get().stream()
-                .map(browseResult -> List.of(browseResult.getReferences())).toList();
+                .map(browseResult ->  {
+                    // For folders containing lots of nodes, browses may be paginated. To get the next page's contents,
+                    // continuation points are used. This loop will get all pages of results.
+                    // See https://github.com/eclipse/milo/issues/227#issuecomment-366752809
+                    // Note: in case of multiple continuation points, this could be further optimized by using the other
+                    // browseNext() method that takes a list of continuation points. However, this is not done for
+                    // simplicity, and because this is not expected to be a common case.
+                    var subReferences = new ArrayList<>(Arrays.asList(browseResult.getReferences()));
+                    try {
+                        var continuationPoint = browseResult.getContinuationPoint();
+                        while (continuationPoint != null && !continuationPoint.isNull()) {
+                            BrowseResult nextPage = client.browseNext(false, continuationPoint).get();
+                            subReferences.addAll(Arrays.asList(nextPage.getReferences()));
+                            continuationPoint = nextPage.getContinuationPoint();
+                        }
+                    } catch (InterruptedException | ExecutionException e) {
+                        throw new OpcException(e);
+                    }
+                    return (List<ReferenceDescription>) subReferences;
+                }).toList();
         } catch (InterruptedException | ExecutionException e) {
             throw new OpcException(e);
         }
