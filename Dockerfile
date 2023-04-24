@@ -29,10 +29,10 @@ RUN mvn clean package -DskipTests -Pproduction
 
 # Running stage: the part that is used for running the application
 FROM eclipse-temurin:17-jdk-alpine
-COPY --from=build /usr/src/app/target/*.jar /app.jar
+COPY --from=build /usr/src/app/target/*.jar /productionpilot.jar
 RUN addgroup --system spring && adduser --system spring --ingroup spring
 USER spring:spring
 
 EXPOSE 8080
 VOLUME /config
-CMD java -jar /app.jar
+CMD java -jar /productionpilot.jar
