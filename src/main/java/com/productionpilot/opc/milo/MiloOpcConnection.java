@@ -46,7 +46,16 @@ import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.
 @Slf4j
 public class MiloOpcConnection implements OpcConnection {
 
-    private final int CONNECT_RETY_INTERVAL = 5000;
+    private final int CONNECT_RETY_INTERVAL = 5000,
+    
+    /**
+     * The maximum number of nodes that can be browsed in a single request. If more nodes are requested, multiple
+     * requests will be made and transparently combined.
+     *
+     * Introduced to work around a bug in certain servers (such as KepServer) that return "The response message size
+     * exceeds limits set by the client" if a browse request would return too many nodes.
+      */
+    NODE_LIMIT_PER_BROWSE_REQUEST = 100;
 
     private final int timeout;
     private final String opcServerUrl, opcServerHostnameOverride, opcUser, opcPassword;
@@ -124,6 +133,14 @@ public class MiloOpcConnection implements OpcConnection {
     @Override
     public List<List<OpcNode>> browse(@NonNull List<OpcNode> parents) throws OpcException {
         checkConnected();
+        if(parents.size() > NODE_LIMIT_PER_BROWSE_REQUEST) {
+            var result = new ArrayList<List<OpcNode>>();
+            for(var i = 0; i < parents.size(); i += NODE_LIMIT_PER_BROWSE_REQUEST) {
+                var subList = parents.subList(i, Math.min(i + NODE_LIMIT_PER_BROWSE_REQUEST, parents.size()));
+                result.addAll(browse(subList));
+            }
+            return result;
+        }
         List<NodeId> browseRoots = parents.stream().map(node -> {
             if(node == null) {
                 return Identifiers.ObjectsFolder;
@@ -151,7 +168,7 @@ public class MiloOpcConnection implements OpcConnection {
                     // For folders containing lots of nodes, browses may be paginated. To get the next page's contents,
                     // continuation points are used. This loop will get all pages of results.
                     // See https://github.com/eclipse/milo/issues/227#issuecomment-366752809
-                    // Note: in case of multiple continuation points, this could be further optimized by using the other
+                        // Note: in case of multiple continuation points, this could be further optimized by using the other
                     // browseNext() method that takes a list of continuation points. However, this is not done for
                     // simplicity, and because this is not expected to be a common case.
                     var subReferences = new ArrayList<>(Arrays.asList(browseResult.getReferences()));
