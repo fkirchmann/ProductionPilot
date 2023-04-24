@@ -91,6 +91,7 @@ public class MiloOpcConnection implements OpcConnection {
                                                 : EndpointUtil.updateUrl(url, opcServerHostnameOverride)),
                         configBuilder -> configBuilder
                                 .setIdentityProvider(new UsernameProvider(opcUser, opcPassword))
+                                .setMaxResponseMessageSize(uint(128 * 1000 * 1000)) // 128 MB
                                 .build()
                 );
                 client = (OpcUaClient) client.connect().get();
@@ -170,7 +171,7 @@ public class MiloOpcConnection implements OpcConnection {
             throw new OpcException(e);
         }
         if(references.size() != browseRoots.size()) {
-            throw new IllegalStateException("Browse result size does not match browse request size");
+            throw new OpcException("Browse result size does not match browse request size");
         }
         // Set up a table mapping the ReferenceDescription of each child node to that child node's type
         // For those child nodes that are objects, set the type accordingly
