@@ -329,10 +329,14 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
         }
 
         public String toString() {
+            var limit = 3;
             return "OpcSubscriptionImpl{" +
                     "subscribedItems=" + subscribedItems.stream()
+                    .limit(limit)
                     .map(item -> item.node.getId().toParseableString())
-                                    .collect(Collectors.joining(", ")) + '}';
+                                    .collect(Collectors.joining(", "))
+                    + (subscribedItems.size() > limit ? ", ..." : "")
+                    + '}';
         }
     }
 
