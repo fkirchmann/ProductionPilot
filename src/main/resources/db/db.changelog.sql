@@ -91,3 +91,7 @@ ALTER TABLE Batch_Machine
 -- changeset fkirchmann:3
 ALTER TABLE Parameter RENAME COLUMN Opc_Node TO Opc_Node_Id;
 UPDATE Parameter SET Opc_Node_Id = Opc_Node_Id::json->>'nodeId';
+
+-- changeset fkirchmann:4
+-- comment: Add index on Measurement.Parameter_Id to speed up queries, improving application startup time
+CREATE INDEX measurement_parameter_id_index ON Measurement (Parameter_Id);
