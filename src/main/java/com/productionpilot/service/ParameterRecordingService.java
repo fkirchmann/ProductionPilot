@@ -76,6 +76,7 @@ public class ParameterRecordingService implements OpcSubscriptionListener {
             }
             OpcNodeId nodeId = null;
             try {
+                log.debug("Parsing node ID for parameter {}", parameter);
                 nodeId = opcService.getConnection().parseNodeId(parameter.getOpcNodeId());
             } catch (OpcException e) {
                 log.error("Could not parse node ID for parameter {}, this parameter will not be recorded",
@@ -94,11 +95,13 @@ public class ParameterRecordingService implements OpcSubscriptionListener {
                     new AtomicLong(measurementService.countByParameter(parameter)));
             parameterRecordingsMap.put(parameter, parameterSubscription);
             nodeIdParameterMap.computeIfAbsent(nodeId, n -> new ArrayList<>()).add(parameter);
+            log.debug("Retrieving last measurement for parameter {}", parameter);
             parameterSubscription.lastMeasurement = measurementService.getLastMeasurement(parameter);
         }
         for (Parameter parameter : newParameters) {
             var parameterSubscription = parameterRecordingsMap.get(parameter);
             if(parameterSubscription != null) {
+                log.debug("Subscribing to parameter {}", parameter);
                 parameterSubscription.opcSubscription = opcService.getConnection().getSubscriptionManager()
                         .subscribe(parameterSubscription.nodeId, parameter.getSamplingInterval(),
                                 ParameterRecordingService.this);
