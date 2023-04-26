@@ -239,9 +239,13 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
                         (monitoredItem, i) -> {
                             var subscribedItem = itemGroup.get(i);
                             monitoredItem.setValueConsumer(MiloOpcSubscriptionManager.this);
-                            subscribedItem.statusCode = MiloOpcTypeMapper.mapStatusCode(Optional.ofNullable(
+                            /* The monitoredItem statusCode can not be relied on, as it may be "Good" even if the
+                             * item's value status is Bad. Instead, we set it to Bad_NoData initially, and when the
+                             * first value arrives, it is updated accordingly. */
+                            /*subscribedItem.statusCode = MiloOpcTypeMapper.mapStatusCode(Optional.ofNullable(
                                             monitoredItem.getStatusCode()).map(StatusCode::getValue)
-                                    .orElse(StatusCodes.Bad_NoData));
+                                    .orElse(StatusCodes.Bad_NoData)); */
+                            subscribedItem.statusCode = MiloOpcTypeMapper.mapStatusCode(StatusCodes.Bad_NoData);
                         }).get();
                 if (monitoredItems.size() != itemGroup.size()) {
                     throw new IllegalStateException("Failed to create all monitored items");
