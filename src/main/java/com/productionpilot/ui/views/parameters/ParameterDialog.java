@@ -185,7 +185,7 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
             tag.setHelperText("No subscription");
         } else if(currentSubscription.getNode().getType().isNotFound()) {
             tag.setHelperText("Tag not found on OPC UA server");
-        } else if(currentSubscription.getNode().getType().isUnknown()) {
+        } else if(currentSubscription.getNode().getType().isUndetermined()) {
             tag.setHelperText("Tag type unknown");
         }else {
             tag.setHelperText("Type: " + currentSubscription.getNode().getType()

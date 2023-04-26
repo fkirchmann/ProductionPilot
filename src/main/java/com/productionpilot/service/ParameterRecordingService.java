@@ -76,8 +76,7 @@ public class ParameterRecordingService implements OpcSubscriptionListener {
             }
             OpcNodeId nodeId = null;
             try {
-                log.debug("Parsing node ID for parameter {}", parameter);
-                nodeId = opcService.getConnection().parseNodeId(parameter.getOpcNodeId());
+                nodeId = opcService.getParameterRecordingConnection().parseNodeId(parameter.getOpcNodeId());
             } catch (OpcException e) {
                 log.error("Could not parse node ID for parameter {}, this parameter will not be recorded",
                         parameter, e);
@@ -95,14 +94,13 @@ public class ParameterRecordingService implements OpcSubscriptionListener {
                     new AtomicLong(measurementService.countByParameter(parameter)));
             parameterRecordingsMap.put(parameter, parameterSubscription);
             nodeIdParameterMap.computeIfAbsent(nodeId, n -> new ArrayList<>()).add(parameter);
-            log.debug("Retrieving last measurement for parameter {}", parameter);
             parameterSubscription.lastMeasurement = measurementService.getLastMeasurement(parameter);
         }
         for (Parameter parameter : newParameters) {
             var parameterSubscription = parameterRecordingsMap.get(parameter);
             if(parameterSubscription != null) {
                 log.debug("Subscribing to parameter {}", parameter);
-                parameterSubscription.opcSubscription = opcService.getConnection().getSubscriptionManager()
+                parameterSubscription.opcSubscription = opcService.getParameterRecordingConnection().getSubscriptionManager()
                         .subscribe(parameterSubscription.nodeId, parameter.getSamplingInterval(),
                                 ParameterRecordingService.this);
             }
@@ -152,7 +150,7 @@ public class ParameterRecordingService implements OpcSubscriptionListener {
         var parameter = parameterSubscription.parameter;
         var node = subscription.getSubscribedItems().get(0).getNode();
         if(parameterSubscription.opcSubscription == subscription) {
-            if(node.getType().isUnknown()) {
+            if(node.getType().isUndetermined()) {
                 log.warn("OPC Node type \"{}\" for Parameter {} could not be determined",
                         node.getType(), parameter);
             } else if(!node.getType().isFound()) {
@@ -168,7 +166,7 @@ public class ParameterRecordingService implements OpcSubscriptionListener {
                 log.debug("Reading initial value of parameter {} (node {})", parameter, node);
                 CompletableFuture.runAsync(() -> {
                     try {
-                        var value = opcService.getConnection().read(node);
+                        var value = opcService.getParameterRecordingConnection().read(node);
                         if (value != null) {
                             onVariableUpdate(value);
                         }

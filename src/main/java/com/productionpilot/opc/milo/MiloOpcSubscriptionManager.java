@@ -14,6 +14,7 @@ import org.eclipse.milo.opcua.sdk.client.api.UaClient;
 import org.eclipse.milo.opcua.sdk.client.api.subscriptions.UaMonitoredItem;
 import org.eclipse.milo.opcua.sdk.client.api.subscriptions.UaSubscription;
 import org.eclipse.milo.opcua.sdk.client.api.subscriptions.UaSubscriptionManager;
+import org.eclipse.milo.opcua.sdk.client.subscriptions.ManagedSubscription;
 import org.eclipse.milo.opcua.stack.core.AttributeId;
 import org.eclipse.milo.opcua.stack.core.StatusCodes;
 import org.eclipse.milo.opcua.stack.core.types.builtin.DataValue;
@@ -33,10 +34,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
@@ -49,6 +52,9 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
     private static final int QUEUE_SIZE_MS = 5000;
     // Regardless of the queue size, the OPC server queue will never be smaller than this
     private static final int MINIMUM_QUEUE_SIZE = 5;
+    // Some OPC UA Servers have a limit on how many items can be subscribed to in a single subscription, this workaround
+    // will split up a big subscription into multiple smaller ones if the number of items exceeds this limit
+    private static final int MAX_ITEMS_PER_SUBSCRIPTION = 2500;
 
     private final MiloOpcConnection connection;
 
@@ -61,7 +67,8 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
     private final SubscribedItemHandleMap<OpcSubscribedItemImpl> subscribedItemsByHandle = new SubscribedItemHandleMap<>();
 
     private final LinkedBlockingDeque<OpcSubscriptionImpl> subscriptionsToCreate = new LinkedBlockingDeque<>(),
-                                                            subscriptionsToDestroy = new LinkedBlockingDeque<>();
+                                                            subscriptionsToUnsubscribe = new LinkedBlockingDeque<>(),
+                                                            subscriptionsToResubscribe = new LinkedBlockingDeque<>();
 
     public MiloOpcSubscriptionManager(MiloOpcConnection connection) {
         this.connection = connection;
@@ -73,12 +80,12 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
     public OpcSubscription subscribe(OpcSubscriptionRequest request) {
         // Create a new subscription, but just the "empty shell" of it
         var subscription = new OpcSubscriptionImpl();
-        for(int i = 0; i < request.getNodeIds().size(); i++) {
-            var nodeId = request.getNodeIds().get(i);
+        for(int i = 0; i < request.getNodes().size(); i++) {
+            var nodeId = request.getNodes().get(i);
             var samplingInterval = request.getSamplingIntervals().get(i);
             var listener = request.getListeners().get(i);
             var subscribedItem = new OpcSubscribedItemImpl(subscription, samplingInterval, listener);
-            subscribedItem.node = MiloOpcNode.newPlaceholder(connection, MiloOpcNodeId.from(nodeId));
+            subscribedItem.node = request.getNodes().get(i);
             subscription.subscribedItems.add(subscribedItem);
         }
         // Notify the thread, so that it can create the subscription on the server
@@ -100,8 +107,7 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
             // Move all subscriptions to the new connection
             for(var subscription : subscriptions) {
                 if(subscription.uaClient != newUaClient) {
-                    subscriptionsToDestroy.add(subscription);
-                    subscriptionsToCreate.add(subscription);
+                    subscriptionsToResubscribe.add(subscription);
                 }
             }
             subscriptionLock.notifyAll();
@@ -120,123 +126,184 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
                     UaClient client;
                     OpcSubscriptionImpl subscriptionToCreate, subscriptionToDestroy;
                     synchronized (subscriptionLock) {
-                        subscriptionToCreate = subscriptionsToCreate.peekFirst();
-                        subscriptionToDestroy = subscriptionsToDestroy.peekFirst();
-                        client = MiloOpcSubscriptionManager.this.client;
-                        // Prioritize destroying subscriptions before creating new ones
-                        if (subscriptionToDestroy != null) {
-                            subscriptionsToDestroy.removeFirst();
-                        } else if (subscriptionToCreate != null && client != null) {
-                            subscriptionsToCreate.removeFirst();
-                        } else {
-                            // Nothing to do, so we can just wait
+                        if(MiloOpcSubscriptionManager.this.client == null || (subscriptionsToUnsubscribe.isEmpty()
+                                && subscriptionsToCreate.isEmpty() && subscriptionsToResubscribe.isEmpty())) {
+                            // Without a client and any tasks there's nothing to do, so we can just wait
                             subscriptionLock.wait();
                         }
                     }
-                    if (subscriptionToDestroy != null) {
-                        try {
-                            performUnsubscribe(subscriptionToDestroy);
-                        } catch (ExecutionException e) {
-                            log.debug("Error while destroying subscription {}, putting it back in the queue",
-                                    subscriptionToDestroy);
-                            subscriptionsToDestroy.addLast(subscriptionToDestroy);
-                        }
-                    } else if (subscriptionToCreate != null && client != null) {
-                        try {
-                            performSubscribe(client, subscriptionToCreate);
-                        } catch (ExecutionException e) {
-                            log.debug("Error while creating subscription {}, putting it back in the queue",
-                                    subscriptionToCreate);
-                            subscriptionsToCreate.addLast(subscriptionToCreate);
-                        }
+                    performQueueAction(subscriptionsToUnsubscribe, this::performUnsubscribe);
+                    client = MiloOpcSubscriptionManager.this.client;
+                    if(client != null) {
+                        performQueueAction(subscriptionsToCreate, subscription -> performSubscribe(client, subscription));
+                        performQueueAction(subscriptionsToResubscribe, subscription -> {
+                            try {
+                                performUnsubscribe(subscription);
+                            } catch (Exception e) {
+                                log.debug("Error while unsubscribing from {}, ignoring", subscription, e);
+                            }
+                            performSubscribe(client, subscription);
+                        });
                     }
                 } catch (Exception e) {
-                    log.error("Error while creating subscription", e);
+                    log.error("Uncaught Exception in subscription management thread", e);
                 }
             }
         }
 
-        private void performSubscribe(@Nonnull UaClient client, @Nonnull OpcSubscriptionImpl subscription)
-                throws ExecutionException, InterruptedException {
-            if (subscription.subscribed || subscription.subscribedItems.isEmpty()) {
-                log.debug("Subscription {} is already subscribed or has no items", subscription);
-                // Nothing to do
-                return;
+        private static <T> void performQueueAction(BlockingDeque<T> queue, Consumer<T> action) {
+            // Take the head from the queue, perform the action, if it throws, put it back at the end
+            T head = queue.pollFirst();
+            if(head != null) {
+                try {
+                    action.accept(head);
+                } catch (Exception e) {
+                    log.debug("Error while performing action on {}, putting it back in the queue", head, e);
+                    queue.addLast(head);
+                }
             }
-            log.debug("Creating subscription {}", subscription);
-            // See https://reference.opcfoundation.org/v104/Core/docs/Part4/5.12.1/
-            double requestedPublishingInterval = subscription.subscribedItems.stream()
-                    .map(OpcSubscribedItemImpl::getSamplingInterval)
-                    .map(Duration::toMillis)
-                    .min(Long::compareTo)
-                    .get().doubleValue() / 1000.0;
-
-            subscription.uaClient = client;
-            subscription.uaSubscription = subscription.uaClient.getSubscriptionManager()
-                    .createSubscription(requestedPublishingInterval).get();
-            subscribedItemsByHandle.addAllAndAssignHandles(subscription.subscribedItems);
-            subscription.subscribed = true;
-
-            var monitoredItems = subscription.uaSubscription.createMonitoredItems(TimestampsToReturn.Both,
-                    subscription.subscribedItems.stream().map(subscribedItem -> {
-                                var nodeId = NodeId.parse(subscribedItem.node.getId().toParseableString());
-                                var queueSize = Math.min(MINIMUM_QUEUE_SIZE,
-                                        QUEUE_SIZE_MS / subscribedItem.samplingInterval.toMillis());
-                                var readValueId = new ReadValueId(
-                                        nodeId,
-                                        AttributeId.Value.uid(),
-                                        null,
-                                        QualifiedName.NULL_VALUE);
-                                var monitoringParameters = new MonitoringParameters(
-                                        uint(subscribedItem.getHandle()),
-                                        subscribedItem.samplingInterval.toMillis() / 1000.0,
-                                        null,
-                                        uint(queueSize),
-                                        true
-                                );
-                                return new MonitoredItemCreateRequest(readValueId, MonitoringMode.Reporting,
-                                        monitoringParameters);
-                            })
-                            .toList(),
-                    (monitoredItem, i) -> {
-                        var subscribedItem = subscription.subscribedItems.get(i);
-                        monitoredItem.setValueConsumer(MiloOpcSubscriptionManager.this);
-                        subscribedItem.statusCode = MiloOpcTypeMapper.mapStatusCode(Optional.ofNullable(
-                                        monitoredItem.getStatusCode()).map(StatusCode::getValue)
-                                .orElse(StatusCodes.Bad_NoData));
-                    }).get();
-            if (monitoredItems.size() != subscription.subscribedItems.size()) {
-                throw new IllegalStateException("Failed to create all monitored items");
-            }
-            log.debug("Created subscription {}", subscription);
         }
 
-        private void performUnsubscribe(@Nonnull OpcSubscriptionImpl subscription)
-                throws ExecutionException, InterruptedException {
-            log.debug("Unsubscribing from {}", subscription);
-            if (!subscription.subscribed || subscription.subscribedItems.isEmpty()) {
+        @SneakyThrows({ExecutionException.class, InterruptedException.class})
+        private void performSubscribe(@Nonnull UaClient client, @Nonnull OpcSubscriptionImpl subscription) {
+            if (subscription.uaClient != null) {
+                log.debug("Subscription {} is already subscribed", subscription);
                 return;
             }
-            subscription.uaClient.getSubscriptionManager().deleteSubscription(
-                subscription.uaSubscription.getSubscriptionId()).get();
+            if(subscription.subscribedItems.isEmpty()) {
+                log.debug("Subscription {} has no items to subscribe to", subscription);
+                return;
+            }
+            if(subscription.scheduleDestroy) {
+                log.debug("Subscription {} has been destroyed, not subscribing", subscription);
+                return;
+            }
+            // Reserve handles for all items
+            subscribedItemsByHandle.addAllAndAssignHandles(subscription.subscribedItems);
+            List<List<OpcSubscribedItemImpl>> itemGroups = new ArrayList<>();
+            for (int i = 0; i < subscription.subscribedItems.size(); i += MAX_ITEMS_PER_SUBSCRIPTION) {
+                itemGroups.add(subscription.subscribedItems.subList(i,
+                        Math.min(i + MAX_ITEMS_PER_SUBSCRIPTION, subscription.subscribedItems.size())));
+            }
+            subscription.uaClient = client;
+            for (List<OpcSubscribedItemImpl> itemGroup : itemGroups) {
+                if(itemGroups.size() == 1) {
+                    log.debug("Creating subscription for {} items", itemGroup.size());
+                } else {
+                    log.debug("Creating partial subscription {} of {} for {} items",
+                            itemGroups.indexOf(itemGroup) + 1, itemGroups.size(), itemGroup.size());
+                }
+                // See https://reference.opcfoundation.org/v104/Core/docs/Part4/5.12.1/
+                double requestedPublishingInterval = itemGroup.stream()
+                        .map(OpcSubscribedItemImpl::getSamplingInterval)
+                        .map(Duration::toMillis)
+                        .min(Long::compareTo)
+                        .get().doubleValue() / 1000.0;
 
-            subscribedItemsByHandle.removeAll(subscription.subscribedItems);
-            subscription.subscribed = false;
-            subscription.uaSubscription = null;
+                // Refresh Node IDs with type information
+                if(itemGroup.stream().anyMatch(item -> item.node.getType().isUndetermined())) {
+                    log.debug("Refreshing node IDs for {} items", itemGroup.size());
+                    var nodeIds = connection.getNodesFromNodeIds(itemGroup.stream().map(item -> item.node.getId())
+                            .collect(Collectors.toList()));
+                    for (int i = 0; i < itemGroup.size(); i++) {
+                        var item = itemGroup.get(i).node = nodeIds.get(i);
+                    }
+                }
+
+                var uaSubscription = subscription.uaClient.getSubscriptionManager()
+                        .createSubscription(requestedPublishingInterval).get();
+                itemGroup.forEach(item -> item.uaSubscription = uaSubscription);
+
+                log.debug("Creating monitored items for {} items", itemGroup.size());
+                var monitoredItems = uaSubscription.createMonitoredItems(TimestampsToReturn.Both,
+                        itemGroup.stream().map(subscribedItem -> {
+                                    var nodeId = NodeId.parse(subscribedItem.node.getId().toParseableString());
+                                    var queueSize = Math.min(MINIMUM_QUEUE_SIZE,
+                                            QUEUE_SIZE_MS / subscribedItem.samplingInterval.toMillis());
+                                    var readValueId = new ReadValueId(
+                                            nodeId,
+                                            AttributeId.Value.uid(),
+                                            null,
+                                            QualifiedName.NULL_VALUE);
+                                    var monitoringParameters = new MonitoringParameters(
+                                            uint(subscribedItem.getHandle()),
+                                            subscribedItem.samplingInterval.toMillis() / 1000.0,
+                                            null,
+                                            uint(queueSize),
+                                            true
+                                    );
+                                    return new MonitoredItemCreateRequest(readValueId, MonitoringMode.Reporting,
+                                            monitoringParameters);
+                                })
+                                .toList(),
+                        (monitoredItem, i) -> {
+                            var subscribedItem = itemGroup.get(i);
+                            monitoredItem.setValueConsumer(MiloOpcSubscriptionManager.this);
+                            subscribedItem.statusCode = MiloOpcTypeMapper.mapStatusCode(Optional.ofNullable(
+                                            monitoredItem.getStatusCode()).map(StatusCode::getValue)
+                                    .orElse(StatusCodes.Bad_NoData));
+                        }).get();
+                if (monitoredItems.size() != itemGroup.size()) {
+                    throw new IllegalStateException("Failed to create all monitored items");
+                }
+            }
+            log.debug("Created subscription(s) {}", subscription);
+        }
+
+        private void performUnsubscribe(@Nonnull OpcSubscriptionImpl subscription) {
+            log.debug("Unsubscribing from {}", subscription);
+            if (subscription.subscribedItems.isEmpty()) {
+                log.debug("Subscription {} has no items to unsubscribe from", subscription);
+                return;
+            }
+            if(subscription.uaClient == null) {
+                log.debug("Subscription {} is not subscribed, can't unsubscribe", subscription);
+                return;
+            }
+            // A subscription may be broken up into several parts. This gets all parts, and then cancels each partial
+            // subscription.
+            subscription.subscribedItems.stream().map(item -> item.uaSubscription)
+                    .collect(Collectors.toSet())
+                .forEach(uaSubscription -> {
+                    if(uaSubscription == null) {
+                        return;
+                    }
+                    try {
+                        subscription.uaClient.getSubscriptionManager()
+                                .deleteSubscription(uaSubscription.getSubscriptionId()).get();
+                    } catch (InterruptedException | ExecutionException e) {
+                        log.debug("Error while unsubscribing from {}, ignoring", subscription, e);
+                    }
+                });
             subscription.uaClient = null;
+            synchronized (subscriptionLock) {
+                subscribedItemsByHandle.removeAll(subscription.subscribedItems);
+            }
         }
     }
 
     private void queueSubscribe(@Nonnull OpcSubscriptionImpl subscription) {
+        log.debug("Queueing subscription {}", subscription);
         synchronized (subscriptionLock) {
             subscriptionsToCreate.add(subscription);
             subscriptionLock.notifyAll();
         }
     }
 
-    private void queueUnsubscribe(@Nonnull OpcSubscriptionImpl subscription) {
+    private void queueDestroy(@Nonnull OpcSubscriptionImpl subscription) {
+        log.debug("Queueing destroy of subscription {}", subscription);
         synchronized (subscriptionLock) {
-            subscriptionsToDestroy.add(subscription);
+            // Prevents any queued subscribe from being executed
+            subscription.scheduleDestroy = true;
+            subscriptionsToUnsubscribe.add(subscription);
+            subscriptionLock.notifyAll();
+        }
+    }
+
+    private void queueResubscribe(@Nonnull OpcSubscriptionImpl subscription) {
+        log.debug("Queueing resubscribe of subscription {}", subscription);
+        synchronized (subscriptionLock) {
+            subscriptionsToResubscribe.add(subscription);
             subscriptionLock.notifyAll();
         }
     }
@@ -245,7 +312,8 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
     public void onValueArrived(UaMonitoredItem item, DataValue wrappedValue) {
         var subscribedItem = subscribedItemsByHandle.getByHandle(item.getClientHandle().longValue());
         if(subscribedItem == null) {
-            log.warn("Received value for unknown item: {}", item);
+            // This can happen quite often for large subscriptions that were just destroyed
+            log.trace("Received value for unknown item: {}", item);
             return;
         }
         subscribedItem.statusCode = MiloOpcTypeMapper.mapStatusCode(
@@ -254,6 +322,13 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
         if(measuredValue != null) {
             subscribedItem.updateCount.incrementAndGet();
             subscribedItem.lastValue = measuredValue;
+            // If the subscription is queued for resubscribe, remove it from the queue
+            // Because if we're receiving values, it's not broken
+            if(subscribedItem.statusCode.isGood()) {
+                synchronized (subscriptionLock) {
+                    subscriptionsToResubscribe.removeIf(sub -> sub.equals(subscribedItem.subscription));
+                }
+            }
             var listener = subscribedItem.listener;
             if(listener != null) {
                 listener.onVariableUpdate(measuredValue);
@@ -266,7 +341,7 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
         log.debug("Subscription {} status changed to {}", uaSubscription.getSubscriptionId(), status);
         if(!status.isGood()) {
             log.warn("Subscription {} status changed to non-good value: {}, resubscribing", uaSubscription.getSubscriptionId(), status);
-            resubscribe(uaSubscription);
+            resubscribeIfExists(uaSubscription);
         }
     }
 
@@ -278,16 +353,16 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
     @Override
     public void onSubscriptionTransferFailed(UaSubscription uaSubscription, StatusCode statusCode) {
         log.debug("Subscription {} transfer failed: {}, resubscribing", uaSubscription.getSubscriptionId(), statusCode);
-        resubscribe(uaSubscription);
+        resubscribeIfExists(uaSubscription);
     }
 
     @Override
     public void onSubscriptionWatchdogTimerElapsed(UaSubscription uaSubscription) {
-        log.debug("Subscription {} watchdog timer elapsed, resubscribing", uaSubscription.getSubscriptionId());
-        resubscribe(uaSubscription);
+        log.debug("Subscription {} watchdog timer elapsed", uaSubscription.getSubscriptionId());
+        resubscribeIfExists(uaSubscription);
     }
 
-    private void resubscribe(UaSubscription uaSubscription) {
+    private void resubscribeIfExists(UaSubscription uaSubscription) {
         log.debug("Resubscribing for subscription {}", uaSubscription.getSubscriptionId());
         var monitoredItems = uaSubscription.getMonitoredItems();
         if(monitoredItems.isEmpty()) {
@@ -303,9 +378,10 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
         for(var item : subscription.subscribedItems) {
             item.statusCode = OpcStatusCode.BAD;
         }
-        queueUnsubscribe(subscription);
-        if(subscriptions.contains(subscription)) {
-            queueSubscribe(subscription);
+        if(!subscriptions.contains(subscription)) {
+            queueDestroy(subscription);
+        } else {
+            queueResubscribe(subscription);
         }
     }
 
@@ -313,14 +389,13 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
     private class OpcSubscriptionImpl implements OpcSubscription {
         private final List<OpcSubscribedItemImpl> subscribedItems = new ArrayList<>();
         private UaClient uaClient;
-        private UaSubscription uaSubscription;
-        private volatile boolean subscribed = false;
+        private volatile boolean scheduleDestroy = false;
 
         @Override
         @SneakyThrows
         public void unsubscribe() {
             subscriptions.remove(this);
-            MiloOpcSubscriptionManager.this.queueUnsubscribe(this);
+            MiloOpcSubscriptionManager.this.queueDestroy(this);
         }
 
         @Override
@@ -330,8 +405,8 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
 
         public String toString() {
             var limit = 3;
-            return "OpcSubscriptionImpl{" +
-                    "subscribedItems=" + subscribedItems.stream()
+            return "OpcSubscriptionImpl{" + subscribedItems.size() + " item(s): "
+                    + subscribedItems.stream()
                     .limit(limit)
                     .map(item -> item.node.getId().toParseableString())
                                     .collect(Collectors.joining(", "))
@@ -354,6 +429,7 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
         private volatile OpcStatusCode statusCode = OpcStatusCode.BAD;
         @Getter
         private volatile OpcMeasuredValue lastValue = null;
+        private UaSubscription uaSubscription;
         @Override
         public long getUpdateCount() {
             return updateCount.get();

@@ -88,11 +88,6 @@ public class KepOpcNode implements OpcNode {
     }
 
     @Override
-    public OpcConnection getConnection() {
-        return opcNode.getConnection();
-    }
-
-    @Override
     public OpcNodeId getId() { return opcNode.getId(); }
 
     @Override

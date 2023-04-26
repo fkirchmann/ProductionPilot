@@ -47,7 +47,7 @@ import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.
 public class MiloOpcConnection implements OpcConnection {
 
     private final int CONNECT_RETY_INTERVAL = 5000,
-    
+
     /**
      * The maximum number of nodes that can be browsed in a single request. If more nodes are requested, multiple
      * requests will be made and transparently combined.
@@ -88,19 +88,28 @@ public class MiloOpcConnection implements OpcConnection {
             try {
                 var client = OpcUaClient.create(
                         opcServerUrl,
-                        endpoints ->
-                                endpoints.stream()
-                                        .filter(e -> {
-                                            //log.info("Discovered endpoint: {}", e.toString());
-                                            return e.getSecurityPolicyUri()
-                                                    .equals(SecurityPolicy.None.getUri());
-                                        })
-                                        .findFirst()
-                                        .map(url -> opcServerHostnameOverride == null ? url
-                                                : EndpointUtil.updateUrl(url, opcServerHostnameOverride)),
+                        endpoints -> {
+                            if (endpoints.isEmpty()) {
+                                throw new OpcException("No endpoints found");
+                            }
+                            var usedEndpoint = endpoints.stream()
+                                    .filter(e -> {
+                                        //log.info("Discovered endpoint: {}", e.toString());
+                                        return e.getSecurityPolicyUri()
+                                                .equals(SecurityPolicy.None.getUri());
+                                    })
+                                    .findFirst()
+                                    .map(url -> opcServerHostnameOverride == null ? url
+                                            : EndpointUtil.updateUrl(url, opcServerHostnameOverride));
+                            if (usedEndpoint.isEmpty()) {
+                                throw new OpcException("No endpoints with NONE SecurityPolicy found, please check" +
+                                        " your server configuration and create or enable one. Found endpoints: "
+                                        + endpoints.stream().map(Object::toString).collect(Collectors.joining(", ")));
+                            }
+                            return usedEndpoint;
+                        },
                         configBuilder -> configBuilder
                                 .setIdentityProvider(new UsernameProvider(opcUser, opcPassword))
-                                .setMaxResponseMessageSize(uint(128 * 1000 * 1000)) // 128 MB
                                 .build()
                 );
                 client = (OpcUaClient) client.connect().get();
@@ -109,7 +118,7 @@ public class MiloOpcConnection implements OpcConnection {
                 log.info("Connected to OPC server");
                 lastConnectionException = null;
                 subscriptionManager.setClient(client);
-            } catch (InterruptedException | ExecutionException | UaException e) {
+            } catch (InterruptedException | ExecutionException | UaException | OpcException e) {
                 // Don't spam the log with the same error message when we're trying to connect
                 if(lastConnectionException == null || !e.getMessage().equals(lastConnectionException.getMessage())) {
                     log.warn("Error connecting to OPC server, will retry every {} ms", CONNECT_RETY_INTERVAL, e);
@@ -296,7 +305,7 @@ public class MiloOpcConnection implements OpcConnection {
                     var nodeId = nodeIds.get(i / 2);
                     var nodeClassValue = dataValuesFinal[i].getValue();
                     if(nodeClassValue.isNull()) {
-                        log.warn("Got null node class for node {}", nodeId);
+                        log.debug("Got null node class for node {}, does this node exist?", nodeId);
                         return OpcNodeType.NOT_FOUND;
                     }
                     var nodeClass = NodeClass.from((Integer) dataValuesFinal[i].getValue().getValue());

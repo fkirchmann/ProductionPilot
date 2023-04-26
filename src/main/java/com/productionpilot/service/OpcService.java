@@ -48,6 +48,8 @@ public class OpcService {
     @Getter
     private OpcConnection connection;
     @Getter
+    private OpcConnection parameterRecordingConnection;
+    @Getter
     private OpcDeviceEnumerator deviceEnumerator;
 
     @PostConstruct
@@ -65,5 +67,7 @@ public class OpcService {
         } else {
             throw new UnsupportedOperationException("Unknown OPC server driver: " + opcDriver);
         }
+        parameterRecordingConnection = new MiloOpcConnection(opcServerUrl, opcServerHostnameOverride, opcUser,
+                opcPassword, opcTimeout);
     }
 }

@@ -284,7 +284,7 @@ public class DevicesView extends VerticalLayout {
         selectedDeviceNode = deviceSelector.getValue().getNode();
         try {
             // Pre-fetch all child nodes so that they are cached in-memory
-            var timer1 = DebugPerfTimer.start("opc_get_tags");
+            var timer1 = DebugPerfTimer.start("Retrieving all device nodes for " + selectedDevice.getName());
             selectedDeviceChildren = selectedDeviceNode.streamChildrenRecursively(d -> true, d -> true).toList();
             timer1.endAndPrint(log);
 

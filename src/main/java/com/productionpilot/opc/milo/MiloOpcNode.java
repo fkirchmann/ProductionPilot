@@ -48,7 +48,7 @@ public class MiloOpcNode implements OpcNode {
     }
 
     protected static OpcNode newPlaceholder(MiloOpcConnection connection, OpcNodeId nodeId) {
-        return new MiloOpcNode(connection, nodeId, null, null, OpcNodeType.NOT_FOUND);
+        return new MiloOpcNode(connection, nodeId, null, null, OpcNodeType.NOT_DETERMINED);
     }
 
     @SneakyThrows

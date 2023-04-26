@@ -29,10 +29,10 @@ public enum OpcNodeType {
      */
     NOT_FOUND(String.class, "Not Found", null),
     /**
-     * This is a special type that is used when the node type is not known, e.g. because the connection to the OPC UA
-     * server is not yet established.
+     * This is a special type that is used when the node type is not (yet) determined e.g. because the connection to the
+     * OPC UA server is not yet established.
      */
-    NOT_KNOWN(String.class, "Not Known", null);
+    NOT_DETERMINED(String.class, "Not Known", null);
 
     @Getter
     private final Class<?> javaType;
@@ -47,16 +47,16 @@ public enum OpcNodeType {
     }
 
     /**
-     * @return true if this node type is not {@link #NOT_FOUND} or {@link #NOT_KNOWN}
+     * @return true if this node type is not {@link #NOT_FOUND} or {@link #NOT_DETERMINED}
      */
     public boolean isFound() { return this != NOT_FOUND; }
 
     public boolean isNotFound() { return this == NOT_FOUND; }
 
     /**
-     * @return true if this node type is {@link #NOT_KNOWN}
+     * @return true if this node type is {@link #NOT_DETERMINED}
      */
-    public boolean isUnknown() { return this == NOT_KNOWN; }
+    public boolean isUndetermined() { return this == NOT_DETERMINED; }
 
     public boolean isObject() {
         return this == OBJECT && isFound();

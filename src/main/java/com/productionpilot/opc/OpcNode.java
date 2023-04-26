@@ -7,6 +7,7 @@ package com.productionpilot.opc;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.validation.constraints.Null;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -29,8 +30,6 @@ public interface OpcNode {
     }
 
     Stream<OpcNode> streamChildrenRecursively(Predicate<OpcNode> nodeFilter, Predicate<OpcNode> browseFilter) throws OpcException;
-
-    OpcConnection getConnection();
 
     @Nullable
     String getName();
