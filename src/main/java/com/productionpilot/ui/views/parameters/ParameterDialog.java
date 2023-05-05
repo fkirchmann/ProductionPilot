@@ -59,8 +59,8 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
     private final LazyUIRefresher lazyUIRefresher = new LazyUIRefresher();
 
     private final TextField tag = new TextField("OPC UA Tag");
-    private final ComboBox<String> name = new ComboBox<>("Name"),
-            identifier = new ComboBox<>("Identifier (for external Applications)");
+    private final ComboBox<String> name = new ComboBox<>("Name");
+    private final TextField identifier = new TextField("Identifier (for external Applications)");
     private final TextArea description = new TextArea("Description");
     private final NumberField samplingInterval = new NumberField("Sampling interval");
     private final ComboBox<Machine> machine = new ComboBox<>("Machine");
@@ -107,6 +107,8 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
 
         name.setAllowCustomValue(true);
         name.setItems(query -> {
+            // this is an ugly but effective hack, as otherwise vaadin will complain about us not caring about most
+            // of the query
             query.getLimit();
             query.getPageSize();
             query.getOffset();
@@ -116,10 +118,7 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
         name.addCustomValueSetListener(e -> name.setValue(e.getDetail()));
         dialogLayout.add(name);
 
-        identifier.setAllowCustomValue(true);
         identifier.setHelperText("Should *not* be changed once chosen!");
-        identifier.setItems(Collections.emptyList());
-        identifier.addCustomValueSetListener(e -> identifier.setValue(e.getDetail()));
         advancedSettings.add(identifier);
 
         unitOfMeasurement.setClearButtonVisible(true);
