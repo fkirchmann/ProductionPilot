@@ -77,9 +77,9 @@ public class TelegrafConfigGenerator extends VerticalLayout {
                 .filter(pair -> pair.getRight() != null)
                 .toList();
         for(int i = 0; i < list.size(); i++) {
-            var entry = list.get(i);
+            var pair = list.get(i);
             sb.append("\t{ name=\"%s\", namespace=\"3\", identifier_type=\"s\", identifier=\"%s\" }"
-                    .formatted(entry.getKey().getIdentifier(), entry.getValue().getNode().getPath()));
+                    .formatted(pair.getKey().getIdentifier(), pair.getValue().getNode().getPath()));
             if(i < list.size() - 1) {
                 sb.append(",");
             }

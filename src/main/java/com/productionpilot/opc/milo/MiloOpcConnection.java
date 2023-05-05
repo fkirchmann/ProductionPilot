@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -248,10 +249,18 @@ public class MiloOpcConnection implements OpcConnection {
         var nodeTypes = getNodeTypes(miloNodeIds);
         List<OpcNode> nodes = new ArrayList<>(nodeIds.size());
         for (int i = 0; i < nodeIds.size(); i++) {
+            var nodeId = nodeIds.get(i);
             if(nodeTypes.get(i) == null) {
                 nodes.add(null);
             } else {
-                nodes.add(new MiloOpcNode(this, nodeIds.get(i), null, null, nodeTypes.get(i)));
+                String name = null, path = null;
+                if(nodeIds.get(i).getIdentifierType().equalsIgnoreCase("s")) {
+                    // For String identifiers, the identifier is usually of the type "Path.To.MyExampleNode"
+                    var identifierSplit = nodeId.getIdentifier().split(Pattern.quote("."));
+                    name = identifierSplit[identifierSplit.length - 1];
+                    path = nodeId.getIdentifier();
+                }
+                nodes.add(new MiloOpcNode(this, nodeIds.get(i), name, path, nodeTypes.get(i)));
             }
         }
         return nodes;

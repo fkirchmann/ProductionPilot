@@ -176,7 +176,7 @@ public class MiloOpcSubscriptionManager implements UaMonitoredItem.ValueConsumer
                 var nodeIds = connection.getNodesFromNodeIds(subscription.subscribedItems.stream()
                         .map(item -> item.node.getId()).collect(Collectors.toList()));
                 for (int i = 0; i < subscription.subscribedItems.size(); i++) {
-                    var item = subscription.subscribedItems.get(i).node = nodeIds.get(i);
+                    subscription.subscribedItems.get(i).node = nodeIds.get(i);
                 }
             }
 
