@@ -15,6 +15,10 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.router.RouterLink;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+import java.util.Arrays;
 
 /**
  * The main view is a top-level placeholder for other views.
@@ -60,7 +64,10 @@ public class MainLayout extends AppLayout {
         Div layout = new Div();
         layout.addClassNames("flex", "items-center", "px-l");
 
-        H1 appName = new H1("ProductionPilot");
+        // Make ProductionPilot on the top left a link to the root of the app
+        var appNameLink = new Anchor("/", "ProductionPilot");
+        appNameLink.addClassNames("text-body"); // prevents link from being blue
+        var appName = new H1(appNameLink);
         appName.addClassNames("my-m", "me-auto", "text-l");
         layout.add(appName);
 
@@ -77,21 +84,26 @@ public class MainLayout extends AppLayout {
         list.addClassNames("flex", "gap-s", "list-none", "m-0", "p-0");
         nav.add(list);
 
-        for (MenuItemInfo menuItem : createMenuItems()) {
-            list.add(menuItem);
-
-        }
+        Arrays.stream(MenuItem.values()).map(MenuItem::toMenuItemInfo).forEach(list::add);
 
         header.add(layout, nav);
         return header;
     }
 
-    private MenuItemInfo[] createMenuItems() {
-        return new MenuItemInfo[]{ //
-                new MenuItemInfo("Device Tags", "la la-tags", DevicesView.class),
-                new MenuItemInfo("Parameters", "la la-list-ul", ParametersView.class),
-                new MenuItemInfo("Batches & Export", "la la-folder", BatchesView.class),
-                new MenuItemInfo("About", "la la-info-circle", AboutView.class),
-        };
+    @RequiredArgsConstructor
+    @Getter
+    public enum MenuItem {
+        DEVICES("Devices", "la la-tags", DevicesView.class),
+        PARAMETERS("Parameters", "la la-list-ul", ParametersView.class),
+        BATCHES("Batches & Export", "la la-folder", BatchesView.class),
+        ABOUT("About", "la la-info-circle", AboutView.class);
+
+        private final String name;
+        private final String iconClass;
+        private final Class<? extends Component> view;
+
+        public MenuItemInfo toMenuItemInfo() {
+            return new MenuItemInfo(name, iconClass, view);
+        }
     }
 }
