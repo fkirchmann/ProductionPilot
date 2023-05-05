@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 
 import javax.annotation.PostConstruct;
+import java.util.Objects;
 
 @PageTitle("Generate Telegraf Config")
 @Route(value = "make_telegraf", layout = MainLayout.class)
@@ -78,8 +79,11 @@ public class TelegrafConfigGenerator extends VerticalLayout {
                 .toList();
         for(int i = 0; i < list.size(); i++) {
             var pair = list.get(i);
-            sb.append("\t{ name=\"%s\", namespace=\"3\", identifier_type=\"s\", identifier=\"%s\" }"
-                    .formatted(pair.getKey().getIdentifier(), pair.getValue().getNode().getPath()));
+            sb.append("\t{ name=\"%s\", namespace=\"%s\", identifier_type=\"%s\", identifier=\"%s\" }"
+                    .formatted(pair.getKey().getIdentifier(),
+                            Objects.toString(pair.getValue().getNode().getId().getNamespaceIndex()),
+                            pair.getValue().getNode().getId().getIdentifierType(),
+                            pair.getValue().getNode().getId().getIdentifier()));
             if(i < list.size() - 1) {
                 sb.append(",");
             }
