@@ -7,9 +7,7 @@ package com.productionpilot.ui.views.about;
 
 import com.productionpilot.ui.views.MainLayout;
 import com.productionpilot.ui.views.other.TelegrafConfigGenerator;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Image;
-import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -37,7 +35,10 @@ public class AboutView extends VerticalLayout {
                 " at RWTH Aachen University"));
 
         add(new Paragraph("Advanced Features:"));
-        add(new RouterLink("Telegraf Config Generator", TelegrafConfigGenerator.class));
+        var restApiLink = new Anchor("/api-docs/v1/swagger-ui.html", "REST API Documentation");
+        restApiLink.setTarget(AnchorTarget.BLANK);
+        add(new Paragraph(restApiLink));
+        add(new Paragraph(new RouterLink("Telegraf Config Generator", TelegrafConfigGenerator.class)));
 
 
         setSizeFull();
