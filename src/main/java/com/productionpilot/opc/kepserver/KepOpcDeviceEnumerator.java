@@ -25,53 +25,63 @@ public class KepOpcDeviceEnumerator implements OpcDeviceEnumerator, OpcSubscript
     public KepOpcDeviceEnumerator(KepOpcConnection connection, Set<String> singleDeviceNodes) {
         this.connection = connection;
         this.singleDeviceNodes = Set.copyOf(singleDeviceNodes);
-        /*try {
-            // Initializes the device status subscriptions, making future calls to getDevices() faster
-            getDevices();
-        } catch (OpcException ex) {
-            // If getDevices() fails, we'll just have to wait for the next call to getDevices() to initialize the
-            // subscriptions
-            log.warn("Failed to pre-create device status subscriptions on startup. " +
-                    "Is the connection to the OPC server working?", ex);
-        }*/
     }
 
     @Synchronized
     @Override
     public List<OpcDevice> getDevices() throws OpcException {
         Set<OpcNode> devicesOnlineNodes = new HashSet<>();
-        var devices = connection.browseRoot().stream()
+        List<OpcDevice> devices = new ArrayList<>();
+        List<OpcNode> devicesToBrowse = new ArrayList<>();
+        connection.browseRoot().stream()
                 .filter(tag -> tag.getType() == OpcNodeType.OBJECT
+                        && tag.getName() != null
                         && !tag.getName().equals("Server")
                         && !tag.getName().equals("_IoT_Gateway")
                         && !tag.getName().equals("_System")
                         && !tag.getName().equals("_DataLogger")
                         && !tag.getName().equals("_ThingWorx")
                 )
-                .flatMap(tag -> {
-                        if (singleDeviceNodes.contains(tag.getName())) {
-                            return Stream.of(tag).map(tag1 -> (OpcDevice) new KepOpcDevice(tag1,
-                                    tag1.getName().equals("_AdvancedTags") ? "Advanced Tags": tag1.getName(),
-                                    () -> OpcDeviceStatus.UNKNOWN));
-                        } else {
-                            return connection.browse(tag).stream()
-                                    .filter(subtag -> !subtag.getName().startsWith("_Statistics")
-                                            && !subtag.getName().startsWith("_System")
-                                            && !subtag.getName().startsWith("_CommunicationSerialization"))
-                                    .map(node ->
-                                            Optional.ofNullable(node.getChild("_System"))
-                                                .map(t -> t.getChild("_NoError"))
-                                                .map(t -> {
-                                                    devicesOnlineNodes.add(t);
-                                                    return new KepOpcDevice(node, () -> getDeviceStatus(t));
-                                                })
-                                                .orElseGet(() -> {
-                                                    log.warn("Device {} does not have _System._NoError tag", node.getPath());
-                                                    return new KepOpcDevice(node, () -> OpcDeviceStatus.UNKNOWN);
-                                                })
-                                    );
-                        }})
-                .toList();
+                .forEach(tag -> {
+                    if (singleDeviceNodes.contains(tag.getName())) {
+                        Stream.of(tag).map(tag1 -> (OpcDevice) new KepOpcDevice(tag1,
+                                        tag1.getName().equals("_AdvancedTags") ? "Advanced Tags" : tag1.getName(),
+                                        () -> OpcDeviceStatus.UNKNOWN))
+                                .forEach(devices::add);
+                    } else {
+                        devicesToBrowse.add(tag);
+                    }
+                });
+        // In KepServer, Devices form a tree structure:
+        // Root
+        //  - Driver 1
+        //      - Device 1
+        //      - Device 2
+        //  - Driver 2
+        //      - Device 3
+        //      - Device 4
+        // By batching the browse requests, we need just two: one for the root and one for {Driver 1, Driver 2}
+        connection.browse(devicesToBrowse)
+                .forEach(tags -> {
+                    tags.stream()
+                            .filter(subtag ->subtag.getName() != null
+                                    && !subtag.getName().startsWith("_Statistics")
+                                    && !subtag.getName().startsWith("_System")
+                                    && !subtag.getName().startsWith("_CommunicationSerialization"))
+                            .map(node ->
+                                    Optional.ofNullable(node.getChild("_System"))
+                                            .map(t -> t.getChild("_NoError"))
+                                            .map(t -> {
+                                                devicesOnlineNodes.add(t);
+                                                return new KepOpcDevice(node, () -> getDeviceStatus(t));
+                                            })
+                                            .orElseGet(() -> {
+                                                log.warn("Device {} does not have _System._NoError tag", node.getPath());
+                                                return new KepOpcDevice(node, () -> OpcDeviceStatus.UNKNOWN);
+                                            }))
+                            .forEach(devices::add);
+                });
+        devices.sort(Comparator.comparing(OpcDevice::getName));
         // Remove all subscriptions that are not needed anymore
         var iterator = devicesOnlineSubscriptions.entrySet().iterator();
         while (iterator.hasNext()) {
