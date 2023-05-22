@@ -24,6 +24,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
+import java.util.Optional;
+
 /**
  * The entry point of the Spring Boot application.
  *
@@ -66,9 +68,10 @@ public class Application implements AppShellConfigurator {
      */
     @Bean
     public OpenApiCustomiser fixSwaggerEndpointCustomizer() {
-        return openAPI -> openAPI.getServers().forEach(server -> {
+        return openAPI -> Optional.ofNullable(openAPI.getServers())
+                .ifPresent(servers -> servers.forEach(server -> {
             server.setDescription("This API Endpoint");
             server.setUrl("/");
-        });
+        }));
     }
 }
