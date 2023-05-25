@@ -6,6 +6,9 @@ package com.productionpilot.opc;
 
 import java.time.Duration;
 
+/**
+ * This interface represents an item that is subscribed to in an {@link OpcSubscription}.
+ */
 public interface OpcSubscribedItem {
     /**
      * Gets the node of the subscribed item.

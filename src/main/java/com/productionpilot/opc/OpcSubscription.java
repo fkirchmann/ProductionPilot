@@ -6,11 +6,17 @@ package com.productionpilot.opc;
 
 import java.util.List;
 
+/**
+ * This interface represents an OPC subscription.
+ */
 public interface OpcSubscription {
     /**
      * Unsubscribes from the subscription.
      */
     void unsubscribe();
 
+    /**
+     * @return the list of items that are subscribed to.
+     */
     List<OpcSubscribedItem> getSubscribedItems();
 }

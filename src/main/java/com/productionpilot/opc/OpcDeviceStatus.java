@@ -4,8 +4,20 @@
  */
 package com.productionpilot.opc;
 
+/**
+ * Enum representing the status of an OPC device.
+ */
 public enum OpcDeviceStatus {
+    /**
+     * The device is currently online and available.
+     */
     ONLINE,
+    /**
+     * The device is currently offline and unavailable.
+     */
     OFFLINE,
+    /**
+     * The status of the device is unknown.
+     */
     UNKNOWN
 }

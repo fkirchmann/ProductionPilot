@@ -15,6 +15,11 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * This class represents a subscription request for OPC UA nodes.
+ * It contains a list of nodes to subscribe to, their corresponding sampling intervals,
+ * and a list of listeners to be notified when the values of the subscribed nodes change.
+ */
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 public class OpcSubscriptionRequest {
@@ -22,6 +27,11 @@ public class OpcSubscriptionRequest {
     private final List<Duration> samplingIntervals;
     private final List<OpcSubscriptionListener> listeners;
 
+    /**
+     * Returns a new builder instance for creating an {@link OpcSubscriptionRequest}.
+     *
+     * @return a new {@link OpcSubscriptionRequestBuilder} instance
+     */
     public static OpcSubscriptionRequestBuilder builder() {
         return new OpcSubscriptionRequestBuilder();
     }

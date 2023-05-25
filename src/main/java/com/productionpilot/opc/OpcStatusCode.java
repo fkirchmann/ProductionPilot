@@ -8,14 +8,31 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * This class represents an OPC status code.
+ */
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter
 public class OpcStatusCode {
-
+    /**
+     * Represents a good status code.
+     */
     public static final OpcStatusCode GOOD = new OpcStatusCode("Good", null, 0x00000000, true);
+
+    /**
+     * Represents a bad status code.
+     */
     public static final OpcStatusCode BAD = new OpcStatusCode("Bad", null, 0xC0000000, false);
+
+    /**
+     * Represents a bad unexpected error status code.
+     */
     public static final OpcStatusCode BAD_UNEXPECTED_ERROR =
             new OpcStatusCode("BadUnexpectedError", null, 0x80010000, false);
+
+    /**
+     * Represents a bad no data status code.
+     */
     public static final OpcStatusCode BAD_NO_DATA = new OpcStatusCode(
             "BadNoData", "No data exists for the requested time range or event filter.", 0x809B0000, false);
 
