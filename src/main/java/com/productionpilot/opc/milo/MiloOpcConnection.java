@@ -178,7 +178,7 @@ public class MiloOpcConnection implements OpcConnection {
                     // For folders containing lots of nodes, browses may be paginated. To get the next page's contents,
                     // continuation points are used. This loop will get all pages of results.
                     // See https://github.com/eclipse/milo/issues/227#issuecomment-366752809
-                        // Note: in case of multiple continuation points, this could be further optimized by using the other
+                    // Note: in case of multiple continuation points, this could be further optimized by using the other
                     // browseNext() method that takes a list of continuation points. However, this is not done for
                     // simplicity, and because this is not expected to be a common case.
                     var subReferences = new ArrayList<>(Arrays.asList(browseResult.getReferences()));
