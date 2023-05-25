@@ -2,20 +2,18 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.opc.kepserver;
 
 import com.productionpilot.opc.*;
-import lombok.Synchronized;
-import lombok.extern.slf4j.Slf4j;
-
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Stream;
+import lombok.Synchronized;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class KepOpcDeviceEnumerator implements OpcDeviceEnumerator, OpcSubscriptionListener {
-    private final static Duration DEVICE_ONLINE_CHECK_INTERVAL = Duration.ofSeconds(1);
+    private static final Duration DEVICE_ONLINE_CHECK_INTERVAL = Duration.ofSeconds(1);
 
     private final KepOpcConnection connection;
 
@@ -40,11 +38,12 @@ public class KepOpcDeviceEnumerator implements OpcDeviceEnumerator, OpcSubscript
                         && !tag.getName().equals("_IoT_Gateway")
                         && !tag.getName().equals("_System")
                         && !tag.getName().equals("_DataLogger")
-                        && !tag.getName().equals("_ThingWorx")
-                )
+                        && !tag.getName().equals("_ThingWorx"))
                 .forEach(tag -> {
                     if (singleDeviceNodes.contains(tag.getName())) {
-                        Stream.of(tag).map(tag1 -> (OpcDevice) new KepOpcDevice(tag1,
+                        Stream.of(tag)
+                                .map(tag1 -> (OpcDevice) new KepOpcDevice(
+                                        tag1,
                                         tag1.getName().equals("_AdvancedTags") ? "Advanced Tags" : tag1.getName(),
                                         () -> OpcDeviceStatus.UNKNOWN))
                                 .forEach(devices::add);
@@ -61,41 +60,39 @@ public class KepOpcDeviceEnumerator implements OpcDeviceEnumerator, OpcSubscript
         //      - Device 3
         //      - Device 4
         // By batching the browse requests, we need just two: one for the root and one for {Driver 1, Driver 2}
-        connection.browse(devicesToBrowse)
-                .forEach(tags -> {
-                    tags.stream()
-                            .filter(subtag ->subtag.getName() != null
-                                    && !subtag.getName().startsWith("_Statistics")
-                                    && !subtag.getName().startsWith("_System")
-                                    && !subtag.getName().startsWith("_CommunicationSerialization"))
-                            .map(node ->
-                                    Optional.ofNullable(node.getChild("_System"))
-                                            .map(t -> t.getChild("_NoError"))
-                                            .map(t -> {
-                                                devicesOnlineNodes.add(t);
-                                                return new KepOpcDevice(node, () -> getDeviceStatus(t));
-                                            })
-                                            .orElseGet(() -> {
-                                                log.warn("Device {} does not have _System._NoError tag", node.getPath());
-                                                return new KepOpcDevice(node, () -> OpcDeviceStatus.UNKNOWN);
-                                            }))
-                            .forEach(devices::add);
-                });
+        connection.browse(devicesToBrowse).forEach(tags -> {
+            tags.stream()
+                    .filter(subtag -> subtag.getName() != null
+                            && !subtag.getName().startsWith("_Statistics")
+                            && !subtag.getName().startsWith("_System")
+                            && !subtag.getName().startsWith("_CommunicationSerialization"))
+                    .map(node -> Optional.ofNullable(node.getChild("_System"))
+                            .map(t -> t.getChild("_NoError"))
+                            .map(t -> {
+                                devicesOnlineNodes.add(t);
+                                return new KepOpcDevice(node, () -> getDeviceStatus(t));
+                            })
+                            .orElseGet(() -> {
+                                log.warn("Device {} does not have _System._NoError tag", node.getPath());
+                                return new KepOpcDevice(node, () -> OpcDeviceStatus.UNKNOWN);
+                            }))
+                    .forEach(devices::add);
+        });
         devices.sort(Comparator.comparing(OpcDevice::getName));
         // Remove all subscriptions that are not needed anymore
         var iterator = devicesOnlineSubscriptions.entrySet().iterator();
         while (iterator.hasNext()) {
             var entry = iterator.next();
-            if(!devicesOnlineNodes.contains(entry.getKey())) {
+            if (!devicesOnlineNodes.contains(entry.getKey())) {
                 entry.getValue().unsubscribe();
                 iterator.remove();
             }
         }
         // Subscribe to all devices that are not subscribed yet
         devicesOnlineNodes.forEach(node -> {
-            if(!devicesOnlineSubscriptions.containsKey(node)) {
-                var subscription = connection.getSubscriptionManager()
-                        .subscribe(node, DEVICE_ONLINE_CHECK_INTERVAL, this);
+            if (!devicesOnlineSubscriptions.containsKey(node)) {
+                var subscription =
+                        connection.getSubscriptionManager().subscribe(node, DEVICE_ONLINE_CHECK_INTERVAL, this);
                 devicesOnlineSubscriptions.put(node, subscription);
             }
         });

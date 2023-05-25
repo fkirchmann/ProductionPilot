@@ -2,20 +2,17 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.db.influx;
 
 import com.influxdb.annotations.Column;
 import com.influxdb.client.domain.WritePrecision;
-
 import java.time.Instant;
 
 @com.influxdb.annotations.Measurement(name = InfluxMeasurement.MEASUREMENT_NAME)
 public class InfluxMeasurement {
     public static final WritePrecision WRITE_PRECISION = WritePrecision.MS;
 
-    public static final String
-            MEASUREMENT_NAME = "measurement",
+    public static final String MEASUREMENT_NAME = "measurement",
             MEASUREMENT_ID = "measurement_id",
             PARAMETER_ID = "parameter_id",
             PARAMETER_IDENTIFIER = "parameter_identifier",

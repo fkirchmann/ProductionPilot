@@ -2,11 +2,9 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.opc.milo;
 
 import com.productionpilot.opc.*;
-
 import java.util.List;
 
 public class DefaultOpcDeviceEnumerator implements OpcDeviceEnumerator {
@@ -18,8 +16,10 @@ public class DefaultOpcDeviceEnumerator implements OpcDeviceEnumerator {
 
     @Override
     public List<OpcDevice> getDevices() throws OpcException {
-        return connection.browseRoot().stream().map(RawOpcDevice::new)
-                .map(device -> (OpcDevice) device).toList();
+        return connection.browseRoot().stream()
+                .map(RawOpcDevice::new)
+                .map(device -> (OpcDevice) device)
+                .toList();
     }
 
     public static class RawOpcDevice implements OpcDevice {

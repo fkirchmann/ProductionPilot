@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.db.influx;
 
 import com.productionpilot.db.timescale.entities.Measurement;
@@ -11,17 +10,16 @@ import com.productionpilot.db.timescale.service.ParameterService;
 import com.productionpilot.db.timescale.service.event.EntityCreatedEvent;
 import com.productionpilot.service.ParameterRecordingService;
 import com.productionpilot.util.DebugPerfTimer;
+import java.util.Optional;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.annotation.PostConstruct;
-import java.util.Optional;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 @Slf4j
 @Service
@@ -43,7 +41,7 @@ public class InfluxReplicationService {
         var thread = new Thread(() -> {
             // Replicate previously recorded measurements
             log.info("Beginning replication of all existing measurements to InfluxDB");
-            var timer  = DebugPerfTimer.start("InfluxDB replication");
+            var timer = DebugPerfTimer.start("InfluxDB replication");
             transactional.replicateAllMeasurements();
             timer.endAndPrint(log);
             // Replicate new measurements
@@ -62,8 +60,6 @@ public class InfluxReplicationService {
         thread.setDaemon(true);
         thread.start();
     }
-
-
 
     @EventListener(EntityCreatedEvent.class)
     public void onMeasurementCreated(EntityCreatedEvent<Measurement> event) {
@@ -104,24 +100,28 @@ public class InfluxReplicationService {
         @Transactional(readOnly = true)
         public void replicateAllMeasurements() {
             var lastMeasurement = measurementService.getLastMeasurement();
-            var lastMeasurementId = Optional.ofNullable(lastMeasurement).map(Measurement::getId).orElse(null);
+            var lastMeasurementId =
+                    Optional.ofNullable(lastMeasurement).map(Measurement::getId).orElse(null);
             var lastInfluxMeasurementId = influxMeasurementService.getLastMeasurementId();
-            if(lastMeasurement == null) {
+            if (lastMeasurement == null) {
                 log.info("No measurements");
                 return;
             }
-            if(lastMeasurementId == null) {
+            if (lastMeasurementId == null) {
                 log.error("Last measurement has no id!! {}", lastMeasurement);
                 return;
             }
-            if(lastInfluxMeasurementId == null) {
+            if (lastInfluxMeasurementId == null) {
                 log.info("No influx measurements, replicating all...");
                 measurementService.streamAll().forEach(influxMeasurementService::record);
                 log.info("Replication finished");
-            } else if(lastInfluxMeasurementId < lastMeasurementId) {
-                log.info("Replicating missing measurements (last: {}, lastInflux: {})...", lastMeasurement.getId(),
+            } else if (lastInfluxMeasurementId < lastMeasurementId) {
+                log.info(
+                        "Replicating missing measurements (last: {}, lastInflux: {})...",
+                        lastMeasurement.getId(),
                         lastInfluxMeasurementId);
-                measurementService.streamByIdGreaterThan(lastInfluxMeasurementId)
+                measurementService
+                        .streamByIdGreaterThan(lastInfluxMeasurementId)
                         .forEach(influxMeasurementService::record);
                 log.info("Replication finished");
             }

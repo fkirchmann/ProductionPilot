@@ -2,9 +2,7 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views;
-
 
 import com.productionpilot.ui.util.LineAwesomeIcon;
 import com.productionpilot.ui.views.about.AboutView;
@@ -15,10 +13,9 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.router.RouterLink;
+import java.util.Arrays;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-
-import java.util.Arrays;
 
 /**
  * The main view is a top-level placeholder for other views.
@@ -50,7 +47,6 @@ public class MainLayout extends AppLayout {
         public Class<?> getView() {
             return view;
         }
-
     }
 
     public MainLayout() {

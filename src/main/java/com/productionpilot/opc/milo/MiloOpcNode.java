@@ -2,47 +2,50 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.opc.milo;
 
 import com.productionpilot.opc.OpcException;
 import com.productionpilot.opc.OpcNode;
 import com.productionpilot.opc.OpcNodeId;
 import com.productionpilot.opc.OpcNodeType;
-import lombok.Getter;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.eclipse.milo.opcua.stack.core.types.structured.ReferenceDescription;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
+import lombok.Getter;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import org.eclipse.milo.opcua.stack.core.types.structured.ReferenceDescription;
 
 @Slf4j
 public class MiloOpcNode implements OpcNode {
     @Getter
     private final MiloOpcConnection connection;
+
     @Getter
     private final String name;
+
     @Getter
     private final String path;
+
     private final OpcNodeId nodeId;
     private final String nodeIdString;
+
     @Getter
     private final OpcNodeType type;
 
     private List<OpcNode> children;
 
-    protected static OpcNode fromReferenceDescription(MiloOpcConnection connection, OpcNode parent,
-                                                      ReferenceDescription rd, OpcNodeType type) {
-        var nodeId = MiloOpcNodeId.from(rd.getNodeId().toNodeId(connection.client.getNamespaceTable())
-                .orElseThrow(() -> new IllegalArgumentException("Illegal Node ID: "+ rd.getNodeId())));
+    protected static OpcNode fromReferenceDescription(
+            MiloOpcConnection connection, OpcNode parent, ReferenceDescription rd, OpcNodeType type) {
+        var nodeId = MiloOpcNodeId.from(rd.getNodeId()
+                .toNodeId(connection.client.getNamespaceTable())
+                .orElseThrow(() -> new IllegalArgumentException("Illegal Node ID: " + rd.getNodeId())));
         var name = rd.getBrowseName().getName();
-        var path = parent == null ? rd.getBrowseName().getName()
+        var path = parent == null
+                ? rd.getBrowseName().getName()
                 : parent.getPath() + "." + rd.getBrowseName().getName();
         return new MiloOpcNode(connection, nodeId, name, path, type);
     }
@@ -63,7 +66,7 @@ public class MiloOpcNode implements OpcNode {
 
     @Override
     public List<OpcNode> getChildren() throws OpcException {
-        if(this.children == null) {
+        if (this.children == null) {
             this.children = connection.browse(this);
         }
         return this.children;
@@ -75,7 +78,7 @@ public class MiloOpcNode implements OpcNode {
         List<OpcNode> children = getChildren();
         Stream.Builder<OpcNode> streamBuilder = Stream.builder();
 
-        while(!children.isEmpty()) {
+        while (!children.isEmpty()) {
             // First, add all children to the result
             // Then filter: we only want to browse the children that match the browseFilter
             final var filteredChildren = children.stream()
@@ -83,7 +86,9 @@ public class MiloOpcNode implements OpcNode {
                     .peek(streamBuilder::add)
                     .filter(browseFilter)
                     .toList();
-            if(filteredChildren.isEmpty()) { break; }
+            if (filteredChildren.isEmpty()) {
+                break;
+            }
             // Now, we need to fetch the children of each of the filtered children
             // However, some of the filtered children may already have their children fetched earlier,
             // so we don't need to fetch them again
@@ -95,15 +100,14 @@ public class MiloOpcNode implements OpcNode {
             final List<OpcNode> childrenToFetch = filteredChildren.stream()
                     .filter(child -> !childrenOfFilteredChildren.containsKey(child))
                     .toList();
-            if(!childrenToFetch.isEmpty()) {
+            if (!childrenToFetch.isEmpty()) {
                 var fetchedChildren = connection.browse(childrenToFetch);
-                IntStream.range(0, childrenToFetch.size())
-                        .forEach(i -> {
-                            var childToFetch = childrenToFetch.get(i);
-                            var childrenOfChildToFetch = fetchedChildren.get(i);
-                            ((MiloOpcNode) childToFetch).children = childrenOfChildToFetch;
-                            childrenOfFilteredChildren.put(childToFetch, childrenOfChildToFetch);
-                        });
+                IntStream.range(0, childrenToFetch.size()).forEach(i -> {
+                    var childToFetch = childrenToFetch.get(i);
+                    var childrenOfChildToFetch = fetchedChildren.get(i);
+                    ((MiloOpcNode) childToFetch).children = childrenOfChildToFetch;
+                    childrenOfFilteredChildren.put(childToFetch, childrenOfChildToFetch);
+                });
             }
             // Finally, aggregate the children of the filtered children into a list.
             children = filteredChildren.stream()
@@ -126,7 +130,7 @@ public class MiloOpcNode implements OpcNode {
 
     @Override
     public boolean equals(Object other) {
-        if(other instanceof OpcNode otherNode) {
+        if (other instanceof OpcNode otherNode) {
             return this.getId().equals(otherNode.getId());
         } else {
             return false;

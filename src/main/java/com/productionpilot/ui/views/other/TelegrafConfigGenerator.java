@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views.other;
 
 import com.productionpilot.db.timescale.entities.Machine;
@@ -17,12 +16,11 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import java.util.Objects;
+import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
-
-import javax.annotation.PostConstruct;
-import java.util.Objects;
 
 @PageTitle("Generate Telegraf Config")
 @Route(value = "make_telegraf", layout = MainLayout.class)
@@ -64,9 +62,7 @@ public class TelegrafConfigGenerator extends VerticalLayout {
         textArea.setReadOnly(true);
         textArea.setWidthFull();
         textArea.setHeightFull();
-        textArea.getStyle().set("white-space", "pre")
-                .set("overflow", "auto")
-                .set("padding-bottom", "1em");
+        textArea.getStyle().set("white-space", "pre").set("overflow", "auto").set("padding-bottom", "1em");
     }
 
     private String generateConfig(Machine machine) {
@@ -77,14 +73,15 @@ public class TelegrafConfigGenerator extends VerticalLayout {
                 .map(param -> Pair.of(param, parameterRecordingService.getSubscribedItem(param)))
                 .filter(pair -> pair.getRight() != null)
                 .toList();
-        for(int i = 0; i < list.size(); i++) {
+        for (int i = 0; i < list.size(); i++) {
             var pair = list.get(i);
             sb.append("\t{ name=\"%s\", namespace=\"%s\", identifier_type=\"%s\", identifier=\"%s\" }"
-                    .formatted(pair.getKey().getIdentifier(),
+                    .formatted(
+                            pair.getKey().getIdentifier(),
                             Objects.toString(pair.getValue().getNode().getId().getNamespaceIndex()),
                             pair.getValue().getNode().getId().getIdentifierType(),
                             pair.getValue().getNode().getId().getIdentifier()));
-            if(i < list.size() - 1) {
+            if (i < list.size() - 1) {
                 sb.append(",");
             }
             sb.append("\n");
@@ -93,14 +90,15 @@ public class TelegrafConfigGenerator extends VerticalLayout {
         var parametersMissingIdentifiers = machine.getParameters().stream()
                 .filter(param -> param.getIdentifier() == null)
                 .toList();
-        if(!parametersMissingIdentifiers.isEmpty()) {
+        if (!parametersMissingIdentifiers.isEmpty()) {
             sb.append("\n\n");
             sb.append("## The following parameters are missing identifiers and are not included in the list above:\n");
-            for(var param : parametersMissingIdentifiers) {
+            for (var param : parametersMissingIdentifiers) {
                 sb.append("# %s".formatted(param.getName()));
                 var paramSubscribedItem = parameterRecordingService.getSubscribedItem(param);
-                if(paramSubscribedItem != null) {
-                    sb.append(" (Tag: %s)".formatted(paramSubscribedItem.getNode().getPath()));
+                if (paramSubscribedItem != null) {
+                    sb.append(
+                            " (Tag: %s)".formatted(paramSubscribedItem.getNode().getPath()));
                 }
                 sb.append("\n");
             }

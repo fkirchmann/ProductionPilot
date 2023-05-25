@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.util;
 
 import com.productionpilot.db.timescale.DBExceptionMapper;
@@ -15,6 +14,11 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.data.binder.Binder;
+import java.util.Optional;
+import java.util.function.Consumer;
+import javax.annotation.PostConstruct;
+import javax.validation.ValidationException;
+import javax.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -24,12 +28,6 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.TransactionSystemException;
-
-import javax.annotation.PostConstruct;
-import javax.validation.ValidationException;
-import javax.validation.constraints.NotNull;
-import java.util.Optional;
-import java.util.function.Consumer;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -43,11 +41,10 @@ public abstract class CrudDialog<T extends CrudDialog<T, E>, E> extends Dialog {
     private BeanValidationBinder<E> binder;
 
     private Consumer<E> creationCallback, updateCallback, deletionCallback;
-
     @Getter(AccessLevel.PROTECTED)
-    private final Button    deleteButton = new Button("Delete", new Icon(VaadinIcon.TRASH), e -> delete()),
-                        createButton = new Button("Create", e -> create()),
-                        updateButton = new Button("Update", e -> update(entity));
+    private final Button deleteButton = new Button("Delete", new Icon(VaadinIcon.TRASH), e -> delete()),
+            createButton = new Button("Create", e -> create()),
+            updateButton = new Button("Update", e -> update(entity));
 
     @PostConstruct
     private void init() {
@@ -79,6 +76,7 @@ public abstract class CrudDialog<T extends CrudDialog<T, E>, E> extends Dialog {
         binder.bindInstanceFields(this);
         binder.addStatusChangeListener(e -> refreshButtons());
     }
+
     protected abstract Class<E> getEntityClass();
 
     protected String getEntityName() {
@@ -140,16 +138,17 @@ public abstract class CrudDialog<T extends CrudDialog<T, E>, E> extends Dialog {
     }
 
     private void create() {
-        if(binder.validate().isOk()) {
+        if (binder.validate().isOk()) {
             E entity = null;
             try {
                 entity = onCreate();
                 update(entity); // update the rest of the fields, also closes the dialog
                 var entityFinal = entity;
                 Optional.ofNullable(creationCallback).ifPresent(c -> c.accept(entityFinal));
-            } catch (ValidationException | DataIntegrityViolationException
-                     | TransactionSystemException e) {
-                if(entity != null) { delete(); }
+            } catch (ValidationException | DataIntegrityViolationException | TransactionSystemException e) {
+                if (entity != null) {
+                    delete();
+                }
                 NotificationUtil.showError(DBExceptionMapper.getMessage(e));
                 createButton.setEnabled(true);
             }
@@ -159,13 +158,12 @@ public abstract class CrudDialog<T extends CrudDialog<T, E>, E> extends Dialog {
     }
 
     private void update(E entity) {
-        if(binder.writeBeanIfValid(entity)) {
+        if (binder.writeBeanIfValid(entity)) {
             try {
                 onUpdate(entity);
                 close();
                 Optional.ofNullable(updateCallback).ifPresent(c -> c.accept(entity));
-            } catch (ValidationException | DataIntegrityViolationException
-                     | TransactionSystemException e) {
+            } catch (ValidationException | DataIntegrityViolationException | TransactionSystemException e) {
                 NotificationUtil.showError(DBExceptionMapper.getMessage(e));
                 updateButton.setEnabled(true);
             }
@@ -187,12 +185,14 @@ public abstract class CrudDialog<T extends CrudDialog<T, E>, E> extends Dialog {
     }
 
     protected final void checkOpened() {
-        if(!isOpened()) {
+        if (!isOpened()) {
             throw new IllegalStateException("Dialog is not opened");
         }
     }
 
     protected abstract E onCreate();
+
     protected abstract void onUpdate(E entity);
+
     protected abstract void onDelete(E entity);
 }

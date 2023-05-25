@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views.units;
 
 import com.productionpilot.db.timescale.entities.UnitOfMeasurement;
@@ -44,11 +43,13 @@ public class UnitOfMeasurementDialog extends CrudDialog<UnitOfMeasurementDialog,
     @Override
     protected void openDeletionDialog(Runnable onConfirm) {
         var numParams = parameterService.findByUnitOfMeasurement(getEntity()).size();
-        ConfirmDeletionDialog.open(getEntity().getName(),
-                "Are you sure you want to delete this Unit of Measurement? " +
-                        (numParams > 0 ? "This will remove it from "
-                                + numParams + " Parameter(s)!"
-                                : "It is not currently in use by any Parameters."), onConfirm);
+        ConfirmDeletionDialog.open(
+                getEntity().getName(),
+                "Are you sure you want to delete this Unit of Measurement? "
+                        + (numParams > 0
+                                ? "This will remove it from " + numParams + " Parameter(s)!"
+                                : "It is not currently in use by any Parameters."),
+                onConfirm);
     }
 
     @Override

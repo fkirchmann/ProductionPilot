@@ -2,9 +2,9 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views.parameters;
 
+import com.google.common.collect.Streams;
 import com.productionpilot.db.timescale.entities.Machine;
 import com.productionpilot.db.timescale.entities.Measurement;
 import com.productionpilot.db.timescale.entities.Parameter;
@@ -16,7 +16,6 @@ import com.productionpilot.ui.components.ImprovedRefreshTreeGrid;
 import com.productionpilot.ui.util.*;
 import com.productionpilot.ui.views.MainLayout;
 import com.productionpilot.ui.views.machines.MachineDialog;
-import com.google.common.collect.Streams;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.GridSortOrder;
@@ -28,14 +27,13 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-import javax.annotation.PostConstruct;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
+import javax.annotation.PostConstruct;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @PageTitle("Parameters")
 @Route(value = "parameters", layout = MainLayout.class)
@@ -62,17 +60,19 @@ public class ParametersView extends VerticalLayout {
     private void initializeGrid() {
         grid.addColumn(td -> td.get().getStatus())
                 .setHeader(Emoji.WHITE_CIRCLE)
-                .setFlexGrow(0).setWidth("6ch").setSortable(true);
+                .setFlexGrow(0)
+                .setWidth("6ch")
+                .setSortable(true);
         var nameColumn = grid.addComponentHierarchyColumn(dataWrapped -> {
                     var data = dataWrapped.get();
                     var layout = new HorizontalLayout();
                     layout.setAlignItems(Alignment.BASELINE);
-                    layout.add(data.isMachine() ? new LineAwesomeIcon("la la-cog")
-                            : new LineAwesomeIcon("la la-list-ul"));
+                    layout.add(
+                            data.isMachine() ? new LineAwesomeIcon("la la-cog") : new LineAwesomeIcon("la la-list-ul"));
                     layout.add(new Text(data.getName()));
-                    if(data.isMachine()) {
+                    if (data.isMachine()) {
                         var text = new Span();
-                        if(data.getTotalParameters() == 0) {
+                        if (data.getTotalParameters() == 0) {
                             text.setText(" - No Parameters defined");
                         } else {
                             text.setText(" - " + data.getOnlineParameters() + " / " + data.getTotalParameters()
@@ -82,33 +82,57 @@ public class ParametersView extends VerticalLayout {
                         layout.add(text);
                     }
                     return layout;
-                }).setHeader("Name")
-                .setFlexGrow(5).setResizable(true).setSortable(true)
+                })
+                .setHeader("Name")
+                .setFlexGrow(5)
+                .setResizable(true)
+                .setSortable(true)
                 .setComparator(Comparator.comparing(td -> td.get().getName()));
-        grid.addColumn(td -> td.get().getCount()).setHeader("Recorded")
-                .setFlexGrow(0).setWidth("14ch").setResizable(true).setSortable(true).setTextAlign(ColumnTextAlign.END);
-        grid.addColumn(td -> td.get().getLastMeasurementTime()).setHeader("Last Measurement")
-                .setFlexGrow(0).setWidth("17ch").setResizable(true).setSortable(true);
-        grid.addColumn(td -> td.get().getLastMeasurementValue()).setHeader("Last Value")
-                .setFlexGrow(0).setWidth("12ch").setResizable(true).setSortable(true);
-        grid.addColumn(td -> td.get().getUnit()).setHeader("Unit")
-                .setFlexGrow(0).setWidth("10ch").setResizable(true).setSortable(true);
+        grid.addColumn(td -> td.get().getCount())
+                .setHeader("Recorded")
+                .setFlexGrow(0)
+                .setWidth("14ch")
+                .setResizable(true)
+                .setSortable(true)
+                .setTextAlign(ColumnTextAlign.END);
+        grid.addColumn(td -> td.get().getLastMeasurementTime())
+                .setHeader("Last Measurement")
+                .setFlexGrow(0)
+                .setWidth("17ch")
+                .setResizable(true)
+                .setSortable(true);
+        grid.addColumn(td -> td.get().getLastMeasurementValue())
+                .setHeader("Last Value")
+                .setFlexGrow(0)
+                .setWidth("12ch")
+                .setResizable(true)
+                .setSortable(true);
+        grid.addColumn(td -> td.get().getUnit())
+                .setHeader("Unit")
+                .setFlexGrow(0)
+                .setWidth("10ch")
+                .setResizable(true)
+                .setSortable(true);
         grid.addColumn(new ComponentRenderer<>(dataWrapped -> {
                     var data = dataWrapped.get();
                     var anchor = new Anchor("#", new Icon("lumo", "edit"));
-                    anchor.getElement().addEventListener("click", e -> {
+                    anchor.getElement()
+                            .addEventListener("click", e -> {
                                 grid.select(dataWrapped);
-                                if(data.isMachine()) {
+                                if (data.isMachine()) {
                                     machineDialog.openForUpdate(data.machine, m -> refresh(), m -> refresh());
                                 } else {
-                                    parameterDialog.openForUpdate(data.parameter, p -> refresh(), p -> refresh())
+                                    parameterDialog
+                                            .openForUpdate(data.parameter, p -> refresh(), p -> refresh())
                                             .setSubscribedNode(
                                                     parameterRecordingService.getSubscribedItem(data.parameter));
                                 }
                             })
                             .addEventData("event.preventDefault()");
                     return anchor;
-                })).setFlexGrow(0).setWidth("6ch");
+                }))
+                .setFlexGrow(0)
+                .setWidth("6ch");
         grid.setSizeFull();
         grid.sort(GridSortOrder.asc(nameColumn).build());
         add(grid);
@@ -116,9 +140,9 @@ public class ParametersView extends VerticalLayout {
 
     private void refresh() {
         grid.improvedSetValues(() -> Streams.concat(
-                machineService.findAll().stream().map(ParameterTreeItem::new),
-                parameterService.findAll().stream().map(ParameterTreeItem::new)
-            ).toList());
+                        machineService.findAll().stream().map(ParameterTreeItem::new),
+                        parameterService.findAll().stream().map(ParameterTreeItem::new))
+                .toList());
     }
 
     private class ParameterTreeItem extends ImprovedRefreshTreeGrid.TreeItem<ParameterTreeItem> {
@@ -171,10 +195,10 @@ public class ParametersView extends VerticalLayout {
 
         @Override
         public boolean deepEquals(ParameterTreeItem other) {
-            if(!getId().equals(other.getId())) {
+            if (!getId().equals(other.getId())) {
                 return false;
             }
-            if(!Objects.equals(getName(), other.getName())
+            if (!Objects.equals(getName(), other.getName())
                     || !Objects.equals(getStatus(), other.getStatus())
                     || !Objects.equals(getLastMeasurementTime(), other.getLastMeasurementTime())
                     || !Objects.equals(getLastMeasurementValue(), other.getLastMeasurementValue())
@@ -183,17 +207,17 @@ public class ParametersView extends VerticalLayout {
                     || !Objects.equals(getLastMeasurement(), other.getLastMeasurement())) {
                 return false;
             }
-            if(machine != null && !machine.deepEquals(other.machine)) {
+            if (machine != null && !machine.deepEquals(other.machine)) {
                 return false;
             }
-            if(parameter != null && !parameter.deepEquals(other.parameter)) {
+            if (parameter != null && !parameter.deepEquals(other.parameter)) {
                 return false;
             }
             return true;
         }
 
         private long getCount() {
-            if(isMachine()) {
+            if (isMachine()) {
                 return machine.getParameters().stream()
                         .map(parameterRecordingService::getMeasurementCount)
                         .reduce(0L, Long::sum);
@@ -203,33 +227,38 @@ public class ParametersView extends VerticalLayout {
         }
 
         private String calculateLastMeasurementTime() {
-            return getLastMeasurement().map(Measurement::getClientTime)
+            return getLastMeasurement()
+                    .map(Measurement::getClientTime)
                     .map(UIFormatters.DATE_TIME_FORMATTER_SECONDS::format)
                     .orElse(null);
         }
 
         private String calculateLastMeasurementValue() {
-            return isMachine() ? "" : getLastMeasurement().map(Measurement::getValueAsString).orElse("");
+            return isMachine()
+                    ? ""
+                    : getLastMeasurement().map(Measurement::getValueAsString).orElse("");
         }
 
         private String getUnit() {
-            return isMachine() ? "" :
-                    Optional.ofNullable(parameter.getUnitOfMeasurement())
-                    .map(UnitOfMeasurement::getAbbreviation).orElse("");
+            return isMachine()
+                    ? ""
+                    : Optional.ofNullable(parameter.getUnitOfMeasurement())
+                            .map(UnitOfMeasurement::getAbbreviation)
+                            .orElse("");
         }
 
         private String calculateStatus() {
-            if(isMachine()) {
+            if (isMachine()) {
                 var totalParameters = getTotalParameters();
                 var onlineParameters = getOnlineParameters();
-                if(onlineParameters > 0) {
-                    if(onlineParameters == totalParameters) {
+                if (onlineParameters > 0) {
+                    if (onlineParameters == totalParameters) {
                         return Emoji.GREEN_CIRCLE;
                     } else {
                         return Emoji.YELLOW_CIRCLE;
                     }
                 } else {
-                    if(totalParameters == 0) {
+                    if (totalParameters == 0) {
                         return Emoji.WHITE_CIRCLE;
                     } else {
                         return Emoji.RED_CIRCLE;
@@ -237,14 +266,19 @@ public class ParametersView extends VerticalLayout {
                 }
             } else {
                 return parameterRecordingService.getStatusCode(parameter).isGood()
-                        ? Emoji.GREEN_CIRCLE : Emoji.RED_CIRCLE;
+                        ? Emoji.GREEN_CIRCLE
+                        : Emoji.RED_CIRCLE;
             }
         }
 
         private long calculateOnlineParameters() {
-            return !isMachine() ? 0 : machine.getParameters().stream()
-                    .filter(parameter -> parameterRecordingService.getStatusCode(parameter).isGood())
-                    .count();
+            return !isMachine()
+                    ? 0
+                    : machine.getParameters().stream()
+                            .filter(parameter -> parameterRecordingService
+                                    .getStatusCode(parameter)
+                                    .isGood())
+                            .count();
         }
 
         private long calculateTotalParameters() {
@@ -252,7 +286,7 @@ public class ParametersView extends VerticalLayout {
         }
 
         private Optional<Measurement> calculateLastMeasurement() {
-            if(isMachine()) {
+            if (isMachine()) {
                 return machine.getParameters().stream()
                         .map(parameterRecordingService::getLastMeasurement)
                         .filter(Objects::nonNull)
@@ -263,4 +297,3 @@ public class ParametersView extends VerticalLayout {
         }
     }
 }
-

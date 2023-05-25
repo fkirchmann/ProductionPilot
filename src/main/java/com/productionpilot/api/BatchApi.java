@@ -2,13 +2,17 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.api;
 
 import com.productionpilot.db.timescale.entities.Batch;
 import com.productionpilot.db.timescale.service.BatchService;
 import com.productionpilot.ui.util.UIFormatters;
 import com.productionpilot.util.Util;
+import java.io.*;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.List;
+import javax.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.http.HttpStatus;
@@ -19,12 +23,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-
-import javax.servlet.http.HttpServletResponse;
-import java.io.*;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/batches")
@@ -38,7 +36,7 @@ public class BatchApi {
     List<Batch> getBatches() {
         return batchService.findAll();
     }
-    
+
     @GetMapping(value = "id/{id}/export/csv-zip", produces = "application/zip")
     @SneakyThrows(IOException.class)
     @Transactional(readOnly = true)
@@ -48,12 +46,12 @@ public class BatchApi {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Machine not found");
         }
         var filename = batch.getName() + " - Exported on "
-                + UIFormatters.DATE_TIME_FORMATTER.format(
-                        LocalDateTime.now(ZoneId.systemDefault())).replace(":", ".") + ".zip";
-        //setting headers
+                + UIFormatters.DATE_TIME_FORMATTER
+                        .format(LocalDateTime.now(ZoneId.systemDefault()))
+                        .replace(":", ".") + ".zip";
+        // setting headers
         response.setStatus(HttpServletResponse.SC_OK);
-        response.addHeader("Content-Disposition", "attachment; filename=\""
-                + Util.filterFilename(filename) + "\"");
+        response.addHeader("Content-Disposition", "attachment; filename=\"" + Util.filterFilename(filename) + "\"");
 
         batchCSVExporter.writeBatchToZip(response.getOutputStream(), batch);
     }

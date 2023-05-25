@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views.machines;
 
 import com.productionpilot.db.timescale.entities.Machine;
@@ -41,11 +40,13 @@ public class MachineDialog extends CrudDialog<MachineDialog, Machine> {
     @Override
     protected void openDeletionDialog(Runnable onConfirm) {
         var numParams = getEntity().getParameters().size();
-        ConfirmDeletionDialog.open(getEntity().getName(),
-                "Are you sure you want to delete this Machine? " +
-                        (numParams > 0 ? "This will also delete "
-                                + numParams + " Parameter(s) belonging to this machine!"
-                                : "It does not currently have any parameters."), onConfirm);
+        ConfirmDeletionDialog.open(
+                getEntity().getName(),
+                "Are you sure you want to delete this Machine? "
+                        + (numParams > 0
+                                ? "This will also delete " + numParams + " Parameter(s) belonging to this machine!"
+                                : "It does not currently have any parameters."),
+                onConfirm);
     }
 
     @Override

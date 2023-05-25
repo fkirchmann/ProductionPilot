@@ -2,18 +2,14 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.opc.milo;
 
 import com.productionpilot.opc.OpcException;
 import com.productionpilot.opc.OpcNodeId;
-import org.eclipse.milo.opcua.stack.core.UaException;
+import java.util.Optional;
 import org.eclipse.milo.opcua.stack.core.UaRuntimeException;
 import org.eclipse.milo.opcua.stack.core.types.builtin.NodeId;
 import org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.UShort;
-import org.eclipse.milo.opcua.stack.core.types.enumerated.IdType;
-
-import java.util.Optional;
 
 public class MiloOpcNodeId implements OpcNodeId {
     private final NodeId nodeId;
@@ -25,7 +21,7 @@ public class MiloOpcNodeId implements OpcNodeId {
     }
 
     static MiloOpcNodeId from(OpcNodeId nodeId) {
-        if(nodeId instanceof MiloOpcNodeId) {
+        if (nodeId instanceof MiloOpcNodeId) {
             return (MiloOpcNodeId) nodeId;
         } else {
             return MiloOpcNodeId.from(nodeId.toParseableString());
@@ -50,7 +46,9 @@ public class MiloOpcNodeId implements OpcNodeId {
 
     @Override
     public Integer getNamespaceIndex() {
-        return Optional.ofNullable(nodeId.getNamespaceIndex()).map(UShort::intValue).orElse(null);
+        return Optional.ofNullable(nodeId.getNamespaceIndex())
+                .map(UShort::intValue)
+                .orElse(null);
     }
 
     @Override

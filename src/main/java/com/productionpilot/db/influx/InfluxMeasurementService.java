@@ -2,24 +2,19 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.db.influx;
 
-import com.productionpilot.db.timescale.entities.Measurement;
-import com.productionpilot.db.timescale.service.ParameterService;
 import com.influxdb.query.dsl.Flux;
 import com.influxdb.query.dsl.functions.restriction.Restrictions;
+import com.productionpilot.db.timescale.entities.Measurement;
+import com.productionpilot.db.timescale.service.ParameterService;
+import java.time.ZonedDateTime;
+import javax.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
-
-import javax.annotation.PostConstruct;
-import java.time.Instant;
-import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -42,7 +37,7 @@ public class InfluxMeasurementService {
 
     public void record(Measurement measurement) {
         influxDBService.getWriteApi().writeMeasurement(InfluxMeasurement.WRITE_PRECISION, fromMeasurement(measurement));
-        if(lastMeasurementId == null || measurement.getId() > lastMeasurementId) {
+        if (lastMeasurementId == null || measurement.getId() > lastMeasurementId) {
             lastMeasurementId = measurement.getId();
         }
     }
@@ -102,7 +97,7 @@ public class InfluxMeasurementService {
         influxMeasurement.measurement_id = measurement.getId();
         influxMeasurement.parameter_id = Long.toString(measurement.getParameterId());
         var parameter = parameterService.findById(measurement.getParameterId());
-        if(parameter != null) {
+        if (parameter != null) {
             influxMeasurement.parameter_identifier = parameter.getIdentifier();
         } else {
             influxMeasurement.parameter_identifier = null;

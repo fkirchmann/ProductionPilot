@@ -2,18 +2,16 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.db.timescale.service;
 
-import com.productionpilot.db.timescale.repository.BatchRepository;
 import com.productionpilot.db.timescale.entities.Batch;
+import com.productionpilot.db.timescale.repository.BatchRepository;
+import java.util.List;
+import javax.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.Synchronized;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import javax.validation.ValidationException;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -31,8 +29,8 @@ public class BatchService {
     @Synchronized
     public void update(Batch batch) {
         var parent = batch.getParentBatch();
-        if(parent != null) {
-            if(getFullPath(parent).contains(batch)) {
+        if (parent != null) {
+            if (getFullPath(parent).contains(batch)) {
                 throw new ValidationException("The specified parent batch is already a child of this batch.");
             }
         }

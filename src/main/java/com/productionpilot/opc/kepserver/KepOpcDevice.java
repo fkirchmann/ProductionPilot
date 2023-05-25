@@ -2,16 +2,14 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.opc.kepserver;
 
 import com.productionpilot.opc.OpcDevice;
 import com.productionpilot.opc.OpcDeviceStatus;
 import com.productionpilot.opc.OpcNode;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-
-import java.util.function.Supplier;
 
 @Getter
 @RequiredArgsConstructor
@@ -33,7 +31,7 @@ public class KepOpcDevice implements OpcDevice {
 
     @Override
     public boolean equals(Object o) {
-        if(o instanceof KepOpcDevice device) {
+        if (o instanceof KepOpcDevice device) {
             return device.getNode().equals(node);
         }
         return false;

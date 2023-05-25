@@ -2,17 +2,15 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.db.timescale.entities;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
+import java.time.Instant;
 import javax.persistence.*;
 import javax.persistence.Entity;
 import javax.validation.constraints.NotNull;
-import java.time.Instant;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 @Getter
 @Setter
@@ -24,7 +22,7 @@ public class Measurement extends AbstractEntity {
     private Long id;
 
     @NotNull
-    @Column(name="parameter_id")
+    @Column(name = "parameter_id")
     private long parameterId;
 
     @NotNull
@@ -39,7 +37,7 @@ public class Measurement extends AbstractEntity {
     @NotNull
     private Long opcStatusCode;
 
-    //@Type(type = "org.hibernate.type.TextType")
+    // @Type(type = "org.hibernate.type.TextType")
     private String valueString;
 
     private Boolean valueBoolean;
@@ -50,13 +48,13 @@ public class Measurement extends AbstractEntity {
 
     @Transient
     public Object getValue() {
-        if(valueString != null) {
+        if (valueString != null) {
             return valueString;
-        } else if(valueBoolean != null) {
+        } else if (valueBoolean != null) {
             return valueBoolean;
-        } else if(valueLong != null) {
+        } else if (valueLong != null) {
             return valueLong;
-        } else if(valueDouble != null) {
+        } else if (valueDouble != null) {
             return valueDouble;
         } else {
             log.warn("Measurement with ID {} has no value set.", id);

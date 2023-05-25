@@ -2,14 +2,12 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.opc;
 
+import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-
-import java.util.function.Function;
 
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public enum OpcNodeType {
@@ -49,14 +47,20 @@ public enum OpcNodeType {
     /**
      * @return true if this node type is not {@link #NOT_FOUND} or {@link #NOT_DETERMINED}
      */
-    public boolean isFound() { return this != NOT_FOUND; }
+    public boolean isFound() {
+        return this != NOT_FOUND;
+    }
 
-    public boolean isNotFound() { return this == NOT_FOUND; }
+    public boolean isNotFound() {
+        return this == NOT_FOUND;
+    }
 
     /**
      * @return true if this node type is {@link #NOT_DETERMINED}
      */
-    public boolean isUndetermined() { return this == NOT_DETERMINED; }
+    public boolean isUndetermined() {
+        return this == NOT_DETERMINED;
+    }
 
     public boolean isObject() {
         return this == OBJECT && isFound();
@@ -67,7 +71,7 @@ public enum OpcNodeType {
     }
 
     public Object convertFromString(String string) {
-        if(valueConverter == null) {
+        if (valueConverter == null) {
             return string;
         }
         return valueConverter.apply(string);

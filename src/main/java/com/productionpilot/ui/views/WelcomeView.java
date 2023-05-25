@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views;
 
 import com.productionpilot.ui.util.LineAwesomeIcon;
@@ -15,7 +14,6 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-
 import javax.annotation.PostConstruct;
 
 /**
@@ -41,12 +39,10 @@ public class WelcomeView extends VerticalLayout {
         createButtonWithLayout(item.getIconClass(), item.getName(), description, item.getView());
     }
 
-    private void createButtonWithLayout(String iconClass, String header, String description,
-                                        Class<? extends Component> forwardTo) {
+    private void createButtonWithLayout(
+            String iconClass, String header, String description, Class<? extends Component> forwardTo) {
         var buttonIcon = new LineAwesomeIcon(iconClass);
-        buttonIcon.getElement().getStyle()
-                .set("font-size", "2em")
-                .set("margin-top", "3px");
+        buttonIcon.getElement().getStyle().set("font-size", "2em").set("margin-top", "3px");
 
         Label headerLabel = new Label(header);
         headerLabel.getStyle().set("font-weight", "bold");

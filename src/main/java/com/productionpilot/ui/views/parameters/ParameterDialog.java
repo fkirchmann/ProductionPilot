@@ -2,18 +2,17 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views.parameters;
 
 import com.productionpilot.db.timescale.entities.Machine;
 import com.productionpilot.db.timescale.entities.Parameter;
 import com.productionpilot.db.timescale.entities.UnitOfMeasurement;
-import com.productionpilot.opc.OpcMeasuredValue;
-import com.productionpilot.opc.OpcSubscribedItem;
-import com.productionpilot.service.MLCompletionService;
 import com.productionpilot.db.timescale.service.MachineService;
 import com.productionpilot.db.timescale.service.ParameterService;
 import com.productionpilot.db.timescale.service.UnitOfMeasurementService;
+import com.productionpilot.opc.OpcMeasuredValue;
+import com.productionpilot.opc.OpcSubscribedItem;
+import com.productionpilot.service.MLCompletionService;
 import com.productionpilot.ui.util.*;
 import com.productionpilot.ui.views.machines.MachineDialog;
 import com.productionpilot.ui.views.units.UnitOfMeasurementDialog;
@@ -31,16 +30,14 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
+import java.time.Duration;
+import java.util.Optional;
+import javax.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-
-import javax.validation.constraints.NotNull;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.Optional;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -88,19 +85,25 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
 
         machine.setWidthFull();
         machine.addValueChangeListener(e -> editMachineButton.setEnabled(e.getValue() != null));
-        editMachineButton = new Button(new Icon(VaadinIcon.EDIT), e ->
-                machineDialog.openForUpdate(machine.getValue(), mUpdated -> {
-                    refresh();
-                    machine.setValue(mUpdated);
-                }, mDeleted -> {
-                    refresh();
-                    machine.setValue(null);
-                }));
+        editMachineButton = new Button(
+                new Icon(VaadinIcon.EDIT),
+                e -> machineDialog.openForUpdate(
+                        machine.getValue(),
+                        mUpdated -> {
+                            refresh();
+                            machine.setValue(mUpdated);
+                        },
+                        mDeleted -> {
+                            refresh();
+                            machine.setValue(null);
+                        }));
         editMachineButton.setEnabled(false);
-        newMachineButton = new Button(new Icon(VaadinIcon.PLUS), e -> machineDialog.openForCreation(newMachine -> {
-            refresh();
-            machine.setValue(newMachine);
-        }));
+        newMachineButton = new Button(
+                new Icon(VaadinIcon.PLUS),
+                e -> machineDialog.openForCreation(newMachine -> {
+                    refresh();
+                    machine.setValue(newMachine);
+                }));
         var machineLayout = new HorizontalLayout(machine, editMachineButton, newMachineButton);
         machineLayout.setAlignItems(FlexComponent.Alignment.BASELINE);
         dialogLayout.add(machineLayout);
@@ -112,8 +115,9 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
             query.getLimit();
             query.getPageSize();
             query.getOffset();
-            return mlCompletionService.getCompletion(subscription.getNode(),
-                    query.getFilter().orElse("")).stream();
+            return mlCompletionService
+                    .getCompletion(subscription.getNode(), query.getFilter().orElse(""))
+                    .stream();
         });
         name.addCustomValueSetListener(e -> name.setValue(e.getDetail()));
         dialogLayout.add(name);
@@ -124,19 +128,25 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
         unitOfMeasurement.setClearButtonVisible(true);
         unitOfMeasurement.setWidthFull();
         unitOfMeasurement.addValueChangeListener(e -> editUomButton.setEnabled(e.getValue() != null));
-        editUomButton = new Button(new Icon(VaadinIcon.EDIT), e ->
-                uomDialog.openForUpdate(unitOfMeasurement.getValue(), uUpdated -> {
-                    refresh();
-                    unitOfMeasurement.setValue(uUpdated);
-                }, uDeleted -> {
-                    refresh();
-                    unitOfMeasurement.setValue(null);
-                }));
+        editUomButton = new Button(
+                new Icon(VaadinIcon.EDIT),
+                e -> uomDialog.openForUpdate(
+                        unitOfMeasurement.getValue(),
+                        uUpdated -> {
+                            refresh();
+                            unitOfMeasurement.setValue(uUpdated);
+                        },
+                        uDeleted -> {
+                            refresh();
+                            unitOfMeasurement.setValue(null);
+                        }));
         editUomButton.setEnabled(false);
-        newUomButton = new Button(new Icon(VaadinIcon.PLUS), e -> uomDialog.openForCreation(newUom -> {
-            refresh();
-            unitOfMeasurement.setValue(newUom);
-        }));
+        newUomButton = new Button(
+                new Icon(VaadinIcon.PLUS),
+                e -> uomDialog.openForCreation(newUom -> {
+                    refresh();
+                    unitOfMeasurement.setValue(newUom);
+                }));
         var uomLayout = new HorizontalLayout(unitOfMeasurement, editUomButton, newUomButton);
         uomLayout.setAlignItems(FlexComponent.Alignment.BASELINE);
 
@@ -152,10 +162,12 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
     @Override
     protected void initializeAdditionalBindings(Binder<Parameter> binder) {
         binder.forField(samplingInterval)
-                .withValidator(s -> s == null || s >= Parameter.MINIMUM_SAMPLING_INTERVAL_MS,
+                .withValidator(
+                        s -> s == null || s >= Parameter.MINIMUM_SAMPLING_INTERVAL_MS,
                         "Must be at least " + Parameter.MINIMUM_SAMPLING_INTERVAL_MS + " ms")
-                .bind(s -> (double) s.getSamplingInterval().toMillis(),
-                (s, v) -> {if (v != null) s.setSamplingInterval(Duration.ofMillis(v.longValue()));});
+                .bind(s -> (double) s.getSamplingInterval().toMillis(), (s, v) -> {
+                    if (v != null) s.setSamplingInterval(Duration.ofMillis(v.longValue()));
+                });
     }
 
     public ParameterDialog setSubscribedNode(@NotNull OpcSubscribedItem item) {
@@ -175,30 +187,33 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
 
     @Override
     public void refresh() {
-        lazyUIRefresher.refreshIfNecessaryKeepValue(unitOfMeasurement, unitOfMeasurementService.findAll(),
-                (v, uoms) -> unitOfMeasurement.setItems(uoms));
-        lazyUIRefresher.refreshIfNecessaryKeepValue(machine, machineService.findAll(),
-                (v, machines) -> machine.setItems(machines));
+        lazyUIRefresher.refreshIfNecessaryKeepValue(
+                unitOfMeasurement, unitOfMeasurementService.findAll(), (v, uoms) -> unitOfMeasurement.setItems(uoms));
+        lazyUIRefresher.refreshIfNecessaryKeepValue(
+                machine, machineService.findAll(), (v, machines) -> machine.setItems(machines));
         var currentSubscription = this.subscription;
-        if(currentSubscription == null) {
+        if (currentSubscription == null) {
             tag.setHelperText("No subscription");
-        } else if(currentSubscription.getNode().getType().isNotFound()) {
+        } else if (currentSubscription.getNode().getType().isNotFound()) {
             tag.setHelperText("Tag not found on OPC UA server");
-        } else if(currentSubscription.getNode().getType().isUndetermined()) {
+        } else if (currentSubscription.getNode().getType().isUndetermined()) {
             tag.setHelperText("Tag type unknown");
-        }else {
+        } else {
             tag.setHelperText("Type: " + currentSubscription.getNode().getType()
-                    + ", Current value: " + Optional.ofNullable(currentSubscription.getLastValue())
-                    .map(OpcMeasuredValue::getValueAsString)
-                    .orElse(""));
+                    + ", Current value: "
+                    + Optional.ofNullable(currentSubscription.getLastValue())
+                            .map(OpcMeasuredValue::getValueAsString)
+                            .orElse(""));
         }
     }
 
     @Override
     protected void openDeletionDialog(Runnable onConfirm) {
-        ConfirmDeletionDialog.open(getEntity().getName(),
-                "Are you sure you want to delete this Parameter?" +
-                        " Recorded values will become inaccessible, and no new values will be recorded.", onConfirm);
+        ConfirmDeletionDialog.open(
+                getEntity().getName(),
+                "Are you sure you want to delete this Parameter?"
+                        + " Recorded values will become inaccessible, and no new values will be recorded.",
+                onConfirm);
     }
 
     @Override
@@ -211,7 +226,7 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
 
     @Override
     protected void onUpdate(Parameter entity) {
-        if(entity.getIdentifier() != null && entity.getIdentifier().isBlank()) {
+        if (entity.getIdentifier() != null && entity.getIdentifier().isBlank()) {
             entity.setIdentifier(null);
         }
         parameterService.update(entity);

@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.components;
 
 import com.vaadin.flow.component.grid.Grid;
@@ -10,11 +9,10 @@ import com.vaadin.flow.component.treegrid.CollapseEvent;
 import com.vaadin.flow.component.treegrid.ExpandEvent;
 import com.vaadin.flow.component.treegrid.TreeGrid;
 import com.vaadin.flow.data.selection.SelectionEvent;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class StateRetainingTreeGrid<T> extends TreeGrid<T> {
@@ -60,7 +58,7 @@ public class StateRetainingTreeGrid<T> extends TreeGrid<T> {
      * with no items selected. So we need to track the selected items ourselves.
      * To still allow the server to select items, we need to override the select / deselect methods.
      */
-    private void retainSelectionState(SelectionEvent<Grid<T>,T> gridSelectionEvent) {
+    private void retainSelectionState(SelectionEvent<Grid<T>, T> gridSelectionEvent) {
         if (gridSelectionEvent.isFromClient()) {
             selectedItems.clear();
             selectedItems.addAll(gridSelectionEvent.getAllSelectedItems());

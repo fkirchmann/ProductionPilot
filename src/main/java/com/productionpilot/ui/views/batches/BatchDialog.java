@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views.batches;
 
 import com.productionpilot.db.timescale.entities.Batch;
@@ -50,8 +49,11 @@ public class BatchDialog extends CrudDialog<BatchDialog, Batch> {
 
     @Override
     public void refresh() {
-        uiRefresher.refreshIfNecessaryKeepValue(parentBatch,
-                batchService.findAll().stream().filter(b -> !b.equals(getEntity())).toList(),
+        uiRefresher.refreshIfNecessaryKeepValue(
+                parentBatch,
+                batchService.findAll().stream()
+                        .filter(b -> !b.equals(getEntity()))
+                        .toList(),
                 HasListDataView::setItems);
     }
 
@@ -77,8 +79,11 @@ public class BatchDialog extends CrudDialog<BatchDialog, Batch> {
     }
 
     protected void openDeletionDialog(Runnable onConfirm) {
-        ConfirmDeletionDialog.open(getEntity().getName(), "Are you sure you want to delete this Batch?" +
-                " This will also delete all child batches, their children, and any associations." +
-                " This action cannot be undone.", onConfirm);
+        ConfirmDeletionDialog.open(
+                getEntity().getName(),
+                "Are you sure you want to delete this Batch?"
+                        + " This will also delete all child batches, their children, and any associations."
+                        + " This action cannot be undone.",
+                onConfirm);
     }
 }

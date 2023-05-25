@@ -2,14 +2,13 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.productionpilot.api.serializers.BatchSerializer;
 import com.productionpilot.api.serializers.MachineSerializer;
 import com.productionpilot.api.serializers.MeasurementSerializer;
 import com.productionpilot.api.serializers.ParameterSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaadin.flow.component.dependency.NpmPackage;
 import com.vaadin.flow.component.page.AppShellConfigurator;
 import com.vaadin.flow.component.page.Push;
@@ -17,14 +16,13 @@ import com.vaadin.flow.server.AppShellSettings;
 import com.vaadin.flow.server.PWA;
 import com.vaadin.flow.shared.ui.Transport;
 import com.vaadin.flow.theme.Theme;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.customizers.OpenApiCustomiser;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
-
-import java.util.Optional;
 
 /**
  * The entry point of the Spring Boot application.
@@ -35,7 +33,10 @@ import java.util.Optional;
  */
 @SpringBootApplication
 @Theme(value = "productionpilot")
-@PWA(name = "ProductionPilot", shortName = "ProductionPilot", offlineResources = {})
+@PWA(
+        name = "ProductionPilot",
+        shortName = "ProductionPilot",
+        offlineResources = {})
 @NpmPackage(value = "line-awesome", version = "1.3.0")
 @Push(transport = Transport.WEBSOCKET)
 @RequiredArgsConstructor
@@ -54,11 +55,11 @@ public class Application implements AppShellConfigurator {
     @Bean
     public ObjectMapper customObjectMapper(final Jackson2ObjectMapperBuilder builder) {
         return builder.serializers(
-                new BatchSerializer(),
-                new MeasurementSerializer(),
-                new ParameterSerializer(),
-                new MachineSerializer()
-        ).build();
+                        new BatchSerializer(),
+                        new MeasurementSerializer(),
+                        new ParameterSerializer(),
+                        new MachineSerializer())
+                .build();
     }
 
     /**
@@ -70,8 +71,8 @@ public class Application implements AppShellConfigurator {
     public OpenApiCustomiser fixSwaggerEndpointCustomizer() {
         return openAPI -> Optional.ofNullable(openAPI.getServers())
                 .ifPresent(servers -> servers.forEach(server -> {
-            server.setDescription("This API Endpoint");
-            server.setUrl("/");
-        }));
+                    server.setDescription("This API Endpoint");
+                    server.setUrl("/");
+                }));
     }
 }

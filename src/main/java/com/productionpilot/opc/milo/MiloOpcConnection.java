@@ -2,10 +2,22 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.opc.milo;
 
+import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
+
 import com.productionpilot.opc.*;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -30,33 +42,19 @@ import org.eclipse.milo.opcua.stack.core.types.structured.ReadValueId;
 import org.eclipse.milo.opcua.stack.core.types.structured.ReferenceDescription;
 import org.eclipse.milo.opcua.stack.core.util.EndpointUtil;
 
-import javax.annotation.Nullable;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
-import static org.eclipse.milo.opcua.stack.core.types.builtin.unsigned.Unsigned.uint;
-
 @Slf4j
 public class MiloOpcConnection implements OpcConnection {
 
     private final int CONNECT_RETY_INTERVAL = 5000,
 
-    /**
-     * The maximum number of nodes that can be browsed in a single request. If more nodes are requested, multiple
-     * requests will be made and transparently combined.
-     *
-     * Introduced to work around a bug in certain servers (such as KepServer) that return "The response message size
-     * exceeds limits set by the client" if a browse request would return too many nodes.
-      */
-    NODE_LIMIT_PER_BROWSE_REQUEST = 100;
+            /**
+             * The maximum number of nodes that can be browsed in a single request. If more nodes are requested, multiple
+             * requests will be made and transparently combined.
+             *
+             * Introduced to work around a bug in certain servers (such as KepServer) that return "The response message size
+             * exceeds limits set by the client" if a browse request would return too many nodes.
+             */
+            NODE_LIMIT_PER_BROWSE_REQUEST = 100;
 
     private final int timeout;
     private final String opcServerUrl, opcServerHostnameOverride, opcUser, opcPassword;
@@ -64,12 +62,11 @@ public class MiloOpcConnection implements OpcConnection {
     protected OpcUaClient client;
     private DataTypeTree dataTypeTree;
 
-
     private final MiloOpcSubscriptionManager subscriptionManager = new MiloOpcSubscriptionManager(this);
 
     @SneakyThrows
-    public MiloOpcConnection(String opcServerUrl, String opcServerHostnameOverride, String opcUser, String opcPassword,
-                             int timeout) {
+    public MiloOpcConnection(
+            String opcServerUrl, String opcServerHostnameOverride, String opcUser, String opcPassword, int timeout) {
         this.opcServerUrl = opcServerUrl;
         this.opcServerHostnameOverride = opcServerHostnameOverride;
         this.opcUser = opcUser;
@@ -85,7 +82,7 @@ public class MiloOpcConnection implements OpcConnection {
     @SneakyThrows(InterruptedException.class)
     private void connectionThreadRun() {
         Exception lastConnectionException = null;
-        while(client == null) {
+        while (client == null) {
             try {
                 var client = OpcUaClient.create(
                         opcServerUrl,
@@ -95,24 +92,25 @@ public class MiloOpcConnection implements OpcConnection {
                             }
                             var usedEndpoint = endpoints.stream()
                                     .filter(e -> {
-                                        //log.info("Discovered endpoint: {}", e.toString());
-                                        return e.getSecurityPolicyUri()
-                                                .equals(SecurityPolicy.None.getUri());
+                                        // log.info("Discovered endpoint: {}", e.toString());
+                                        return e.getSecurityPolicyUri().equals(SecurityPolicy.None.getUri());
                                     })
                                     .findFirst()
-                                    .map(url -> opcServerHostnameOverride == null ? url
+                                    .map(url -> opcServerHostnameOverride == null
+                                            ? url
                                             : EndpointUtil.updateUrl(url, opcServerHostnameOverride));
                             if (usedEndpoint.isEmpty()) {
-                                throw new OpcException("No endpoints with NONE SecurityPolicy found, please check" +
-                                        " your server configuration and create or enable one. Found endpoints: "
-                                        + endpoints.stream().map(Object::toString).collect(Collectors.joining(", ")));
+                                throw new OpcException("No endpoints with NONE SecurityPolicy found, please check"
+                                        + " your server configuration and create or enable one. Found endpoints: "
+                                        + endpoints.stream()
+                                                .map(Object::toString)
+                                                .collect(Collectors.joining(", ")));
                             }
                             return usedEndpoint;
                         },
                         configBuilder -> configBuilder
                                 .setIdentityProvider(new UsernameProvider(opcUser, opcPassword))
-                                .build()
-                );
+                                .build());
                 client = (OpcUaClient) client.connect().get();
                 this.client = client;
                 dataTypeTree = DataTypeTreeBuilder.build(client);
@@ -121,7 +119,7 @@ public class MiloOpcConnection implements OpcConnection {
                 subscriptionManager.setClient(client);
             } catch (InterruptedException | ExecutionException | UaException | OpcException e) {
                 // Don't spam the log with the same error message when we're trying to connect
-                if(lastConnectionException == null || !e.getMessage().equals(lastConnectionException.getMessage())) {
+                if (lastConnectionException == null || !e.getMessage().equals(lastConnectionException.getMessage())) {
                     log.warn("Error connecting to OPC server, will retry every {} ms", CONNECT_RETY_INTERVAL, e);
                     lastConnectionException = e;
                 }
@@ -135,7 +133,7 @@ public class MiloOpcConnection implements OpcConnection {
     }
 
     private void checkConnected() throws OpcException {
-        if(!isConnected()) {
+        if (!isConnected()) {
             throw new OpcException("Not connected to OPC UA server");
         }
     }
@@ -143,76 +141,88 @@ public class MiloOpcConnection implements OpcConnection {
     @Override
     public List<List<OpcNode>> browse(@NonNull List<OpcNode> parents) throws OpcException {
         checkConnected();
-        if(parents.size() > NODE_LIMIT_PER_BROWSE_REQUEST) {
+        if (parents.size() > NODE_LIMIT_PER_BROWSE_REQUEST) {
             var result = new ArrayList<List<OpcNode>>();
-            for(var i = 0; i < parents.size(); i += NODE_LIMIT_PER_BROWSE_REQUEST) {
+            for (var i = 0; i < parents.size(); i += NODE_LIMIT_PER_BROWSE_REQUEST) {
                 var subList = parents.subList(i, Math.min(i + NODE_LIMIT_PER_BROWSE_REQUEST, parents.size()));
                 result.addAll(browse(subList));
             }
             return result;
         }
-        List<NodeId> browseRoots = parents.stream().map(node -> {
-            if(node == null) {
-                return Identifiers.ObjectsFolder;
-            } else if (node instanceof MiloOpcNode miloOpcNode) {
-                return MiloOpcNodeId.from(miloOpcNode.getId()).getMiloNodeId();
-            } else {
-                throw new UnsupportedOperationException("Cannot browse from node " + node.getPath()
-                        + " because it is not an OpcNodeImpl");
-            }
-        }).toList();
+        List<NodeId> browseRoots = parents.stream()
+                .map(node -> {
+                    if (node == null) {
+                        return Identifiers.ObjectsFolder;
+                    } else if (node instanceof MiloOpcNode miloOpcNode) {
+                        return MiloOpcNodeId.from(miloOpcNode.getId()).getMiloNodeId();
+                    } else {
+                        throw new UnsupportedOperationException(
+                                "Cannot browse from node " + node.getPath() + " because it is not an OpcNodeImpl");
+                    }
+                })
+                .toList();
 
-        var browse = browseRoots.stream().map(browseRoot -> new BrowseDescription(
-                browseRoot,
-                BrowseDirection.Forward,
-                Identifiers.References,
-                true,
-                uint(NodeClass.Object.getValue() | NodeClass.Variable.getValue()),
-                uint(BrowseResultMask.All.getValue())
-        )).toList();
+        var browse = browseRoots.stream()
+                .map(browseRoot -> new BrowseDescription(
+                        browseRoot,
+                        BrowseDirection.Forward,
+                        Identifiers.References,
+                        true,
+                        uint(NodeClass.Object.getValue() | NodeClass.Variable.getValue()),
+                        uint(BrowseResultMask.All.getValue())))
+                .toList();
         // Perform the browse and get the one reference description for each child node
         List<List<ReferenceDescription>> references;
         try {
             references = client.browse(browse).get().stream()
-                .map(browseResult ->  {
-                    // For folders containing lots of nodes, browses may be paginated. To get the next page's contents,
-                    // continuation points are used. This loop will get all pages of results.
-                    // See https://github.com/eclipse/milo/issues/227#issuecomment-366752809
-                    // Note: in case of multiple continuation points, this could be further optimized by using the other
-                    // browseNext() method that takes a list of continuation points. However, this is not done for
-                    // simplicity, and because this is not expected to be a common case.
-                    var subReferences = new ArrayList<>(Arrays.asList(browseResult.getReferences()));
-                    try {
-                        var continuationPoint = browseResult.getContinuationPoint();
-                        while (continuationPoint != null && !continuationPoint.isNull()) {
-                            BrowseResult nextPage = client.browseNext(false, continuationPoint).get();
-                            subReferences.addAll(Arrays.asList(nextPage.getReferences()));
-                            continuationPoint = nextPage.getContinuationPoint();
+                    .map(browseResult -> {
+                        // For folders containing lots of nodes, browses may be paginated. To get the next page's
+                        // contents,
+                        // continuation points are used. This loop will get all pages of results.
+                        // See https://github.com/eclipse/milo/issues/227#issuecomment-366752809
+                        // Note: in case of multiple continuation points, this could be further optimized by using the
+                        // other
+                        // browseNext() method that takes a list of continuation points. However, this is not done for
+                        // simplicity, and because this is not expected to be a common case.
+                        var subReferences = new ArrayList<>(Arrays.asList(browseResult.getReferences()));
+                        try {
+                            var continuationPoint = browseResult.getContinuationPoint();
+                            while (continuationPoint != null && !continuationPoint.isNull()) {
+                                BrowseResult nextPage = client.browseNext(false, continuationPoint)
+                                        .get();
+                                subReferences.addAll(Arrays.asList(nextPage.getReferences()));
+                                continuationPoint = nextPage.getContinuationPoint();
+                            }
+                        } catch (InterruptedException | ExecutionException e) {
+                            throw new OpcException(e);
                         }
-                    } catch (InterruptedException | ExecutionException e) {
-                        throw new OpcException(e);
-                    }
-                    return (List<ReferenceDescription>) subReferences;
-                }).toList();
+                        return (List<ReferenceDescription>) subReferences;
+                    })
+                    .toList();
         } catch (InterruptedException | ExecutionException e) {
             throw new OpcException(e);
         }
-        if(references.size() != browseRoots.size()) {
+        if (references.size() != browseRoots.size()) {
             throw new OpcException("Browse result size does not match browse request size");
         }
         // Set up a table mapping the ReferenceDescription of each child node to that child node's type
         // For those child nodes that are objects, set the type accordingly
         // For all other nodes (i.e., variables), we will have to get the type in another request
-        Map<ReferenceDescription, OpcNodeType> types = references.stream().flatMap(List::stream)
+        Map<ReferenceDescription, OpcNodeType> types = references.stream()
+                .flatMap(List::stream)
                 .filter(rd -> rd.getNodeClass() == NodeClass.Object)
                 .collect(Collectors.toMap(rd -> rd, rd -> OpcNodeType.OBJECT));
 
         // For all other nodes (i.e., variables), we have to get the type in another request
-        List<ReferenceDescription> remainingReferences = references.stream().flatMap(List::stream)
-                .filter(ref -> !types.containsKey(ref)).toList();
-        if(!remainingReferences.isEmpty()) {
-            List<NodeId> remainingNodeIds = remainingReferences.stream().map(rd ->
-                    rd.getNodeId().toNodeId(client.getNamespaceTable()).get()).toList();
+        List<ReferenceDescription> remainingReferences = references.stream()
+                .flatMap(List::stream)
+                .filter(ref -> !types.containsKey(ref))
+                .toList();
+        if (!remainingReferences.isEmpty()) {
+            List<NodeId> remainingNodeIds = remainingReferences.stream()
+                    .map(rd ->
+                            rd.getNodeId().toNodeId(client.getNamespaceTable()).get())
+                    .toList();
             var variableTypes = getNodeTypes(remainingNodeIds);
             for (int i = 0; i < variableTypes.size(); i++) {
                 var referenceDescription = remainingReferences.get(i);
@@ -222,17 +232,17 @@ public class MiloOpcConnection implements OpcConnection {
         // Now that we have all types, return the list of child OpcNodes
         var referencesFinal = references;
         return IntStream.range(0, browseRoots.size())
-            .mapToObj(i ->
-                    referencesFinal.get(i).stream().map(reference -> {
-                        var parent = parents.get(i);
-                        var type = types.get(reference);
-                        if (type == null) {
-                            throw new IllegalStateException("Type is null for reference " + reference);
-                        }
-                        return MiloOpcNode.fromReferenceDescription(this, parent, reference, type);
-                    })
-                .toList()
-            ).toList();
+                .mapToObj(i -> referencesFinal.get(i).stream()
+                        .map(reference -> {
+                            var parent = parents.get(i);
+                            var type = types.get(reference);
+                            if (type == null) {
+                                throw new IllegalStateException("Type is null for reference " + reference);
+                            }
+                            return MiloOpcNode.fromReferenceDescription(this, parent, reference, type);
+                        })
+                        .toList())
+                .toList();
     }
 
     @Override
@@ -245,16 +255,17 @@ public class MiloOpcConnection implements OpcConnection {
     public List<OpcNode> getNodesFromNodeIds(List<OpcNodeId> nodeIds) {
         checkConnected();
         var miloNodeIds = nodeIds.stream()
-                .map(nodeId -> MiloOpcNodeId.from(nodeId).getMiloNodeId()).toList();
+                .map(nodeId -> MiloOpcNodeId.from(nodeId).getMiloNodeId())
+                .toList();
         var nodeTypes = getNodeTypes(miloNodeIds);
         List<OpcNode> nodes = new ArrayList<>(nodeIds.size());
         for (int i = 0; i < nodeIds.size(); i++) {
             var nodeId = nodeIds.get(i);
-            if(nodeTypes.get(i) == null) {
+            if (nodeTypes.get(i) == null) {
                 nodes.add(null);
             } else {
                 String name = null, path = null;
-                if(nodeIds.get(i).getIdentifierType().equalsIgnoreCase("s")) {
+                if (nodeIds.get(i).getIdentifierType().equalsIgnoreCase("s")) {
                     // For String identifiers, the identifier is usually of the type "Path.To.MyExampleNode"
                     var identifierSplit = nodeId.getIdentifier().split(Pattern.quote("."));
                     name = identifierSplit[identifierSplit.length - 1];
@@ -287,23 +298,19 @@ public class MiloOpcConnection implements OpcConnection {
 
     private List<OpcNodeType> getNodeTypes(List<NodeId> nodeIds) throws OpcException {
         checkConnected();
-        if(nodeIds.isEmpty()) { return List.of(); }
+        if (nodeIds.isEmpty()) {
+            return List.of();
+        }
         var readValues = nodeIds.stream()
                 .flatMap(nodeId -> Stream.of(
-                        new ReadValueId(
-                                nodeId,
-                                AttributeId.NodeClass.uid(),
-                                null,
-                                QualifiedName.NULL_VALUE),
-                        new ReadValueId(
-                                nodeId,
-                                AttributeId.DataType.uid(),
-                                null,
-                                QualifiedName.NULL_VALUE)
-                )).toList();
+                        new ReadValueId(nodeId, AttributeId.NodeClass.uid(), null, QualifiedName.NULL_VALUE),
+                        new ReadValueId(nodeId, AttributeId.DataType.uid(), null, QualifiedName.NULL_VALUE)))
+                .toList();
         DataValue[] dataValues;
         try {
-            dataValues = client.read(0.0, TimestampsToReturn.Neither, readValues).get().getResults();
+            dataValues = client.read(0.0, TimestampsToReturn.Neither, readValues)
+                    .get()
+                    .getResults();
         } catch (InterruptedException | ExecutionException e) {
             throw new OpcException(e);
         }
@@ -313,18 +320,21 @@ public class MiloOpcConnection implements OpcConnection {
                 .mapToObj(i -> {
                     var nodeId = nodeIds.get(i / 2);
                     var nodeClassValue = dataValuesFinal[i].getValue();
-                    if(nodeClassValue.isNull()) {
+                    if (nodeClassValue.isNull()) {
                         log.debug("Got null node class for node {}, does this node exist?", nodeId);
                         return OpcNodeType.NOT_FOUND;
                     }
-                    var nodeClass = NodeClass.from((Integer) dataValuesFinal[i].getValue().getValue());
-                    if(nodeClass == NodeClass.Variable) {
-                        var typeNodeId = (NodeId) dataValuesFinal[i + 1].getValue().getValue();
+                    var nodeClass = NodeClass.from(
+                            (Integer) dataValuesFinal[i].getValue().getValue());
+                    if (nodeClass == NodeClass.Variable) {
+                        var typeNodeId =
+                                (NodeId) dataValuesFinal[i + 1].getValue().getValue();
                         return MiloOpcTypeMapper.mapVariableType(dataTypeTree.getBackingClass(typeNodeId));
                     } else {
                         return OpcNodeType.OBJECT;
                     }
-                }).toList();
+                })
+                .toList();
     }
 
     @Nullable

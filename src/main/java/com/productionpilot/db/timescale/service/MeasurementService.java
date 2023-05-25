@@ -2,19 +2,17 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.db.timescale.service;
 
 import com.productionpilot.db.timescale.entities.Measurement;
 import com.productionpilot.db.timescale.entities.Parameter;
 import com.productionpilot.db.timescale.repository.MeasurementRepository;
 import com.productionpilot.opc.OpcMeasuredValue;
+import java.time.Instant;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.time.Instant;
-import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -30,11 +28,11 @@ public class MeasurementService {
         measurement.setServerTime(measuredValue.getServerTime());
         measurement.setClientTime(measuredValue.getClientTime());
         var value = measuredValue.getValue();
-        if(value instanceof Double doubleValue) {
+        if (value instanceof Double doubleValue) {
             measurement.setValueDouble(doubleValue);
-        } else if(value instanceof Long longValue) {
+        } else if (value instanceof Long longValue) {
             measurement.setValueLong(longValue);
-        } else if(value instanceof Boolean boolValue) {
+        } else if (value instanceof Boolean boolValue) {
             measurement.setValueBoolean(boolValue);
         } else {
             measurement.setValueString(measuredValue.getValueAsString());
@@ -52,7 +50,8 @@ public class MeasurementService {
     }
 
     public Measurement getLastMeasurement(Parameter parameter) {
-        return measurementRepository.findFirstByParameterIdOrderByIdDesc(parameter.getId())
+        return measurementRepository
+                .findFirstByParameterIdOrderByIdDesc(parameter.getId())
                 .orElse(null);
     }
 
@@ -69,8 +68,8 @@ public class MeasurementService {
     }
 
     public Stream<Measurement> streamByParameterAndTimeRange(long parameterId, Instant startTime, Instant endTime) {
-        return measurementRepository.streamByParameterIdAndClientTimeBetweenOrderByIdAsc(parameterId, startTime,
-                endTime);
+        return measurementRepository.streamByParameterIdAndClientTimeBetweenOrderByIdAsc(
+                parameterId, startTime, endTime);
     }
 
     /**
@@ -78,8 +77,8 @@ public class MeasurementService {
      * (i.e., have a higher id).
      */
     public Stream<Measurement> streamAfterMeasurement(Measurement measurement) {
-        return measurementRepository.streamByParameterIdAndIdGreaterThanOrderByIdAsc(measurement.getParameterId(),
-                measurement.getId());
+        return measurementRepository.streamByParameterIdAndIdGreaterThanOrderByIdAsc(
+                measurement.getParameterId(), measurement.getId());
     }
 
     /**

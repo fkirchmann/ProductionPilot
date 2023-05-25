@@ -2,7 +2,6 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.views.batches.machines;
 
 import com.productionpilot.db.timescale.entities.Batch;
@@ -21,14 +20,13 @@ import com.vaadin.flow.component.combobox.ComboBoxBase;
 import com.vaadin.flow.component.datetimepicker.DateTimePicker;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.binder.Binder;
+import java.util.Locale;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-
-import java.util.Locale;
-import java.util.Objects;
 
 @Component
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
@@ -39,14 +37,13 @@ public class BatchMachineDialog extends CrudDialog<BatchMachineDialog, BatchMach
     private final MachineService machineService;
     private final BatchMachineService batchMachineService;
 
-    private final Text description = new Text("This will associate all Measurements from the selected Machine (in the" +
-            " given time range) with the selected Batch.");
+    private final Text description = new Text("This will associate all Measurements from the selected Machine (in the"
+            + " given time range) with the selected Batch.");
     private final ComboBox<Batch> batch = new ComboBox<>("Parent Batch");
 
     private final ComboBox<Machine> machine = new ComboBox<>("Machine");
 
-    private final DateTimePicker startTime = new DateTimePicker("Start Time"),
-            endTime = new DateTimePicker("End Time");
+    private final DateTimePicker startTime = new DateTimePicker("Start Time"), endTime = new DateTimePicker("End Time");
 
     private final LazyUIRefresher lazyUIRefresher = new LazyUIRefresher();
 
@@ -74,7 +71,8 @@ public class BatchMachineDialog extends CrudDialog<BatchMachineDialog, BatchMach
         binder.forField(endTime)
                 .withConverter(timeConverter)
                 .withValidator(Objects::nonNull, "End time is required")
-                .withValidator(time -> time.isAfter(timeConverter.convert(startTime.getValue())),
+                .withValidator(
+                        time -> time.isAfter(timeConverter.convert(startTime.getValue())),
                         "End time must be after start time")
                 .bind(BatchMachine::getEndTime, BatchMachine::setEndTime);
     }
@@ -93,7 +91,9 @@ public class BatchMachineDialog extends CrudDialog<BatchMachineDialog, BatchMach
 
     @Override
     protected BatchMachine onCreate() {
-        return batchMachineService.create(batch.getValue(), machine.getValue(),
+        return batchMachineService.create(
+                batch.getValue(),
+                machine.getValue(),
                 timeConverter.convert(startTime.getValue()),
                 timeConverter.convert(endTime.getValue()));
     }
@@ -109,10 +109,13 @@ public class BatchMachineDialog extends CrudDialog<BatchMachineDialog, BatchMach
     }
 
     protected void openDeletionDialog(Runnable onConfirm) {
-        ConfirmDeletionDialog.open("Association", "If you delete this, the Measurements from Machine \""
-                + getEntity().getMachine().getName() + "\" in the specified time range will no longer be associated" +
-                " with the Batch \"" + getEntity().getBatch().getName() + "\". The measurements itself will remain" +
-                " untouched.", onConfirm);
+        ConfirmDeletionDialog.open(
+                "Association",
+                "If you delete this, the Measurements from Machine \""
+                        + getEntity().getMachine().getName()
+                        + "\" in the specified time range will no longer be associated" + " with the Batch \""
+                        + getEntity().getBatch().getName() + "\". The measurements itself will remain" + " untouched.",
+                onConfirm);
     }
 
     @Override

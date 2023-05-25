@@ -2,22 +2,20 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.db.timescale.entities;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.hibernate.annotations.*;
-import org.hibernate.validator.constraints.time.DurationMin;
-import org.springframework.data.annotation.ReadOnlyProperty;
-
+import java.time.Duration;
 import javax.persistence.*;
 import javax.persistence.Entity;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
-import java.time.Duration;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.*;
+import org.hibernate.validator.constraints.time.DurationMin;
+import org.springframework.data.annotation.ReadOnlyProperty;
 
 @Getter
 @Setter
@@ -25,7 +23,7 @@ import java.time.Duration;
 // Provide soft delete
 @SQLDelete(sql = "UPDATE Parameter SET deleted = true WHERE id = ?")
 @Where(clause = "deleted = false")
-//@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+// @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 public class Parameter extends AbstractEntity {
     public static final long MINIMUM_SAMPLING_INTERVAL_MS = 10;
     public static final Duration DEFAULT_SAMPLING_INTERVAL = Duration.ofMillis(1000);
@@ -67,7 +65,7 @@ public class Parameter extends AbstractEntity {
     private Duration samplingInterval = DEFAULT_SAMPLING_INTERVAL;
 
     public String toString() {
-        if(identifier != null) {
+        if (identifier != null) {
             return "Parameter " + identifier + " (ID " + id + ")";
         } else {
             return "Parameter \"" + name + "\" (ID " + id + ")";

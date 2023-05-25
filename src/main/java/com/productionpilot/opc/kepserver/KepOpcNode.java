@@ -2,34 +2,32 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.opc.kepserver;
 
 import com.productionpilot.opc.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Predicate;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
 @Slf4j
 public class KepOpcNode implements OpcNode {
     /**
      * Nodes that don't match this filter will always return an empty list of children.
      */
-    private static final Predicate<OpcNode> BROWSE_FILTER = node -> node.getType().isObject();
+    private static final Predicate<OpcNode> BROWSE_FILTER =
+            node -> node.getType().isObject();
     /**
      * Nodes that don't match this filter will be removed from any children lists.
      */
-    private static final Predicate<OpcNode> NODE_FILTER = node ->
-            !node.getName().equals("_InternalTags")
-            && !node.getName().equals("_Hints");
+    private static final Predicate<OpcNode> NODE_FILTER =
+            node -> !node.getName().equals("_InternalTags") && !node.getName().equals("_Hints");
 
     /**
      * Regex pattern to extract the string identifier from a String NodeId.
@@ -41,18 +39,17 @@ public class KepOpcNode implements OpcNode {
 
     @Getter
     private final String name, path;
-    
+
     private final KepOpcConnection connection;
 
     @Getter(lazy = true, onMethod = @__({@SneakyThrows}))
-    private final List<OpcNode> children =
-            BROWSE_FILTER.test(this) ?
-                    opcNode.getChildren().stream()
-                            .map(node -> (OpcNode) KepOpcNode.from(connection, node))
-                            .filter(NODE_FILTER)
-                            .toList()
-                    : Collections.emptyList();
-    
+    private final List<OpcNode> children = BROWSE_FILTER.test(this)
+            ? opcNode.getChildren().stream()
+                    .map(node -> (OpcNode) KepOpcNode.from(connection, node))
+                    .filter(NODE_FILTER)
+                    .toList()
+            : Collections.emptyList();
+
     private KepOpcNode(KepOpcConnection connection, OpcNode opcNode) {
         this.opcNode = opcNode;
         this.connection = connection;
@@ -61,14 +58,14 @@ public class KepOpcNode implements OpcNode {
         // In general, we can't always determine the name and path from the NodeId.
         // However, if the NodeId is a string, we can use it to make a reasonable guess at the name and path, based on
         // KepServer's default naming scheme.
-        if(path == null || name == null) {
+        if (path == null || name == null) {
             var matcher = STRING_NODE_ID_PATTERN.matcher(opcNode.getId().getIdentifier());
-            if(matcher.find()) {
+            if (matcher.find()) {
                 var stringIdentifier = matcher.group(1);
-                if(path == null) {
+                if (path == null) {
                     path = stringIdentifier;
                 }
-                if(name == null) {
+                if (name == null) {
                     var pathSplit = path.split(Pattern.quote("."));
                     name = pathSplit[pathSplit.length - 1];
                 }
@@ -79,8 +76,9 @@ public class KepOpcNode implements OpcNode {
     }
 
     protected static KepOpcNode from(KepOpcConnection connection, OpcNode opcNode) {
-        if(opcNode instanceof KepOpcNode) {
-            log.warn("Wrapping a KepOpcNode in a KepOpcNode. This is not necessary and should be avoided.",
+        if (opcNode instanceof KepOpcNode) {
+            log.warn(
+                    "Wrapping a KepOpcNode in a KepOpcNode. This is not necessary and should be avoided.",
                     new RuntimeException("Stack trace"));
             return (KepOpcNode) opcNode;
         }
@@ -88,7 +86,9 @@ public class KepOpcNode implements OpcNode {
     }
 
     @Override
-    public OpcNodeId getId() { return opcNode.getId(); }
+    public OpcNodeId getId() {
+        return opcNode.getId();
+    }
 
     @Override
     public OpcNodeType getType() {
@@ -102,7 +102,7 @@ public class KepOpcNode implements OpcNode {
 
     @Override
     public boolean equals(Object other) {
-        if(other instanceof OpcNode otherNode) {
+        if (other instanceof OpcNode otherNode) {
             return opcNode.equals(otherNode);
         } else {
             return false;
@@ -122,7 +122,8 @@ public class KepOpcNode implements OpcNode {
     @Override
     public Stream<OpcNode> streamChildrenRecursively(Predicate<OpcNode> nodeFilter, Predicate<OpcNode> browseFilter)
             throws OpcException {
-        return opcNode.streamChildrenRecursively(n -> nodeFilter.test(n) && NODE_FILTER.test(n),
+        return opcNode.streamChildrenRecursively(
+                        n -> nodeFilter.test(n) && NODE_FILTER.test(n),
                         n -> browseFilter.test(n) && BROWSE_FILTER.test(n))
                 .map(node -> KepOpcNode.from(connection, node));
     }

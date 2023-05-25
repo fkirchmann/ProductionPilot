@@ -2,19 +2,17 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.components;
 
 import com.vaadin.flow.data.provider.hierarchy.TreeData;
 import com.vaadin.flow.data.provider.hierarchy.TreeDataProvider;
-import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<T>>
@@ -28,7 +26,7 @@ public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<
     }
 
     public void improvedSetValues(Supplier<List<T>> itemsSupplier) {
-        if(items == null)  {
+        if (items == null) {
             this.itemsSupplier = itemsSupplier;
             buildTree();
             this.setDataProvider(new CustomTreeDataProvider<>(treeData));
@@ -41,9 +39,11 @@ public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<
     private void buildTree() {
         treeData.clear();
         var items = itemsSupplier.get();
-        treeData.addRootItems(items.stream().filter(item -> item.getParent() == null).map(this::wrap).toList());
-        items.stream().filter(item -> item.getParent() != null)
-                .forEach(this::addItemToTree);
+        treeData.addRootItems(items.stream()
+                .filter(item -> item.getParent() == null)
+                .map(this::wrap)
+                .toList());
+        items.stream().filter(item -> item.getParent() != null).forEach(this::addItemToTree);
         this.items = items.stream().map(this::wrap).toList();
     }
 
@@ -51,24 +51,26 @@ public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<
         var refreshAll = new AtomicBoolean(false);
         var itemsToRefresh = new HashSet<WrappedItem<T>>();
         var newItems = itemsSupplier.get().stream().map(this::wrap).toList();
-        compareLists(this.items, newItems,
-            (oldItem, newItem) -> {
-                oldItem.set(newItem.get());
-                itemsToRefresh.add(oldItem);
-            },
-            (oldItem, newItem) -> {
-                buildTree();
-                refreshAll.set(true);
-            },
-            (newItem) -> {
-                buildTree();
-                refreshAll.set(true);
-            },
-            (removedItem) -> {
-                treeData.removeItem(removedItem);
-                refreshAll.set(true);
-            });
-        if(refreshAll.get()) {
+        compareLists(
+                this.items,
+                newItems,
+                (oldItem, newItem) -> {
+                    oldItem.set(newItem.get());
+                    itemsToRefresh.add(oldItem);
+                },
+                (oldItem, newItem) -> {
+                    buildTree();
+                    refreshAll.set(true);
+                },
+                (newItem) -> {
+                    buildTree();
+                    refreshAll.set(true);
+                },
+                (removedItem) -> {
+                    treeData.removeItem(removedItem);
+                    refreshAll.set(true);
+                });
+        if (refreshAll.get()) {
             buildTree();
             this.getDataProvider().refreshAll();
         } else {
@@ -82,11 +84,11 @@ public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<
     }
 
     private void addItemToTree(T item) {
-        if(treeData.contains(wrap(item))) {
+        if (treeData.contains(wrap(item))) {
             return;
         }
         // TreeData requires that the parent is added before the child
-        if(item.getParent() != null && !treeData.contains(wrap(item.getParent()))) {
+        if (item.getParent() != null && !treeData.contains(wrap(item.getParent()))) {
             addItemToTree(item.getParent());
         }
         treeData.addItem(wrap(item.getParent()), wrap(item));
@@ -122,32 +124,37 @@ public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<
         }
     }
 
-    private void compareLists(List<WrappedItem<T>> oldList, List<WrappedItem<T>> newList,
-                              BiConsumer<WrappedItem<T>, WrappedItem<T>> updateFunction,
-                              BiConsumer<WrappedItem<T>, WrappedItem<T>> parentChangedFunction,
-                              Consumer<WrappedItem<T>> addFunction,
-                              Consumer<WrappedItem<T>> removeFunction) {
+    private void compareLists(
+            List<WrappedItem<T>> oldList,
+            List<WrappedItem<T>> newList,
+            BiConsumer<WrappedItem<T>, WrappedItem<T>> updateFunction,
+            BiConsumer<WrappedItem<T>, WrappedItem<T>> parentChangedFunction,
+            Consumer<WrappedItem<T>> addFunction,
+            Consumer<WrappedItem<T>> removeFunction) {
 
         Set<WrappedItem<T>> oldSet = new HashSet<>(oldList);
         Set<WrappedItem<T>> newSet = new HashSet<>(newList);
         oldList.stream().filter(item -> !newSet.contains(item)).forEach(removeFunction);
         newList.stream().filter(item -> !oldSet.contains(item)).forEach(addFunction);
 
-        Map<String, WrappedItem<T>> newItemsMap = newList.stream().collect(HashMap::new,
-                (map, newItem) -> map.put(newItem.get().getId(), newItem), HashMap::putAll);
+        Map<String, WrappedItem<T>> newItemsMap = newList.stream()
+                .collect(HashMap::new, (map, newItem) -> map.put(newItem.get().getId(), newItem), HashMap::putAll);
         oldList.forEach(oldItem -> {
             var newItem = newItemsMap.get(oldItem.get().getId());
-            if(newItem == null) {
+            if (newItem == null) {
                 return;
             }
-            if((oldItem.get().getParent() != null && newItem.get().getParent() == null) ||
-                    (oldItem.get().getParent() == null && newItem.get().getParent() != null) ||
-                    oldItem.get().getParent() != null && newItem.get().getParent() != null &&
-                            !oldItem.get().getParent().getId()
+            if ((oldItem.get().getParent() != null && newItem.get().getParent() == null)
+                    || (oldItem.get().getParent() == null && newItem.get().getParent() != null)
+                    || oldItem.get().getParent() != null
+                            && newItem.get().getParent() != null
+                            && !oldItem.get()
+                                    .getParent()
+                                    .getId()
                                     .equals(newItem.get().getParent().getId())) {
                 parentChangedFunction.accept(oldItem, newItem);
             }
-            if(!oldItem.get().deepEquals(newItem.get())) {
+            if (!oldItem.get().deepEquals(newItem.get())) {
                 updateFunction.accept(oldItem, newItem);
             }
         });
@@ -184,7 +191,7 @@ public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<
         private T item;
 
         public static <T> WrappedItem<T> of(T item) {
-            if(item == null) {
+            if (item == null) {
                 return null;
             }
             return new WrappedItem<>(item);
@@ -204,10 +211,10 @@ public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<
 
         @Override
         public boolean equals(Object other) {
-            if(other == null) {
+            if (other == null) {
                 return false;
             }
-            if(other instanceof WrappedItem tw) {
+            if (other instanceof WrappedItem tw) {
                 return tw.item.equals(item);
             }
             return item.equals(other);
@@ -216,7 +223,7 @@ public class ImprovedRefreshTreeGrid<T extends ImprovedRefreshTreeGrid.TreeItem<
         @Override
         public int hashCode() {
             var item = this.item;
-            if(item == null) {
+            if (item == null) {
                 return 0;
             }
             return item.hashCode();

@@ -2,19 +2,17 @@
  * Copyright (c) 2022-2023 Felix Kirchmann.
  * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
  */
-
 package com.productionpilot.ui.util;
 
 import com.productionpilot.db.timescale.entities.AbstractEntity;
 import com.vaadin.flow.component.HasValue;
+import java.io.Serializable;
+import java.util.*;
+import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.util.TriConsumer;
-
-import java.io.Serializable;
-import java.util.*;
-import java.util.function.BiConsumer;
 
 @Slf4j
 public class LazyUIRefresher implements Serializable {
@@ -29,13 +27,13 @@ public class LazyUIRefresher implements Serializable {
      * re-selected, and because we use the equals() method, the value will be the same (due to the same ID), but
      * the value will use new data (e.g., a new name).
      */
-    public <V extends HasValue<?, IT>, I extends Collection<IT>, IT> boolean refreshIfNecessaryKeepValue
-            (V view, I items, BiConsumer<V, I> applicationFunction) {
+    public <V extends HasValue<?, IT>, I extends Collection<IT>, IT> boolean refreshIfNecessaryKeepValue(
+            V view, I items, BiConsumer<V, I> applicationFunction) {
         var before = view.getValue();
-        if(refreshIfNecessary(view, items, applicationFunction)) {
-            if(before != null) {
-                for(var item : items) {
-                    if(Objects.equals(before, item)) {
+        if (refreshIfNecessary(view, items, applicationFunction)) {
+            if (before != null) {
+                for (var item : items) {
+                    if (Objects.equals(before, item)) {
                         view.setValue(item);
                     }
                 }
@@ -57,9 +55,9 @@ public class LazyUIRefresher implements Serializable {
      * @param applicationFunction the function to apply to the field, if the value has changed
      */
     public <V, I, IT> boolean refreshIfNecessary(V view, I items, BiConsumer<V, I> applicationFunction) {
-        if(cache.containsKey(view)) {
+        if (cache.containsKey(view)) {
             Object cachedItems = cache.get(view);
-            if(deepCompare(cachedItems, items)) {
+            if (deepCompare(cachedItems, items)) {
                 return false;
             }
         }
@@ -69,40 +67,39 @@ public class LazyUIRefresher implements Serializable {
     }
 
     private static boolean deepCompare(Object a, Object b) {
-        if(a instanceof Pair<?,?> aPair && b instanceof Pair<?,?> bPair) {
-            return deepCompare(aPair.getLeft(), bPair.getLeft())
-                    && deepCompare(aPair.getRight(), bPair.getRight());
-        } else if(a instanceof Iterable<?> aIterable && b instanceof Iterable<?> bIterable) {
+        if (a instanceof Pair<?, ?> aPair && b instanceof Pair<?, ?> bPair) {
+            return deepCompare(aPair.getLeft(), bPair.getLeft()) && deepCompare(aPair.getRight(), bPair.getRight());
+        } else if (a instanceof Iterable<?> aIterable && b instanceof Iterable<?> bIterable) {
             var aIterator = aIterable.iterator();
             var bIterator = bIterable.iterator();
-            while(aIterator.hasNext() && bIterator.hasNext()) {
-                if(!deepCompare(aIterator.next(), bIterator.next())) {
+            while (aIterator.hasNext() && bIterator.hasNext()) {
+                if (!deepCompare(aIterator.next(), bIterator.next())) {
                     return false;
                 }
             }
             // If one of the iterators has more elements, the lists are not equal
             return aIterator.hasNext() == bIterator.hasNext();
-        } else if(a instanceof Map<?, ?> aMap && b instanceof Map<?, ?> bMap) {
-            if(aMap.size() != bMap.size()) {
+        } else if (a instanceof Map<?, ?> aMap && b instanceof Map<?, ?> bMap) {
+            if (aMap.size() != bMap.size()) {
                 return false;
             }
-            for(var entry : aMap.entrySet()) {
-                if(!deepCompare(entry.getValue(), bMap.get(entry.getKey()))) {
+            for (var entry : aMap.entrySet()) {
+                if (!deepCompare(entry.getValue(), bMap.get(entry.getKey()))) {
                     return false;
                 }
             }
             return true;
-        } else if(a instanceof AbstractEntity aAbstractEntity && b instanceof AbstractEntity bAbstractEntity) {
+        } else if (a instanceof AbstractEntity aAbstractEntity && b instanceof AbstractEntity bAbstractEntity) {
             return aAbstractEntity.deepEquals(bAbstractEntity);
-        } else if(Objects.equals(a, b)) {
+        } else if (Objects.equals(a, b)) {
             return EqualsBuilder.reflectionEquals(a, b, false);
         } else {
             return false;
         }
     }
 
-    public <V, I1, I2> boolean refreshIfNecessary(V view, I1 items1, I2 items2,
-                                               TriConsumer<V, I1, I2> applicationFunction) {
+    public <V, I1, I2> boolean refreshIfNecessary(
+            V view, I1 items1, I2 items2, TriConsumer<V, I1, I2> applicationFunction) {
         var items = Pair.of(items1, items2);
         return refreshIfNecessary(view, items, (v, i) -> applicationFunction.accept(v, i.getLeft(), i.getRight()));
     }
