@@ -27,12 +27,12 @@ import java.util.stream.Collectors;
 @Slf4j
 @RequiredArgsConstructor
 public class MLCompletionService {
-    // TODO:allow this to be disabled in the config
     @Value("${com.productionpilot.openai.model}")
     private String model;
     @Value("${com.productionpilot.openai.api-token:#{null}}")
     private String apiToken;
-    private static final int maxPromptLength = 2048;
+    @Value("${com.productionpilot.openai.max-prompt-length}")
+    private int maxPromptLength;
 
     private static final int selectNewestParameters = 10;
 
