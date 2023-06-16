@@ -168,6 +168,7 @@ public class ParameterDialog extends CrudDialog<ParameterDialog, Parameter> {
                 .bind(s -> (double) s.getSamplingInterval().toMillis(), (s, v) -> {
                     if (v != null) s.setSamplingInterval(Duration.ofMillis(v.longValue()));
                 });
+        binder.forField(identifier).withNullRepresentation("").bind("identifier");
     }
 
     public ParameterDialog setSubscribedNode(@NotNull OpcSubscribedItem item) {
