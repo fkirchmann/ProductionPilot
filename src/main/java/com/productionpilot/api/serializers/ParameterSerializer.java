@@ -26,6 +26,7 @@ public class ParameterSerializer extends StdSerializer<Parameter> {
                 "samplingIntervalMs", parameter.getSamplingInterval().toMillis());
         gen.writeObjectField("machineId", parameter.getMachine().getId());
         gen.writeObjectField("unitOfMeasurement", parameter.getUnitOfMeasurement());
+        gen.writeStringField("opcNodeId", parameter.getOpcNodeId());
         gen.writeEndObject();
     }
 }
