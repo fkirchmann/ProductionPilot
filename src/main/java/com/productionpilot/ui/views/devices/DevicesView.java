@@ -250,7 +250,13 @@ public class DevicesView extends VerticalLayout {
     private void refresh() {
         try {
             var currentDeviceStatus = opcService.getDeviceEnumerator().getDevices().stream()
-                    .collect(Collectors.toMap(device -> device, OpcDevice::getStatus));
+                    .collect(Collectors.toMap(
+                            device -> device,
+                            OpcDevice::getStatus,
+                            (a, b) -> {
+                                throw new IllegalStateException("Duplicate keys: " + a + " and " + b);
+                            },
+                            LinkedHashMap::new));
             lazyUIRefresher.refreshIfNecessary(deviceSelector, currentDeviceStatus, (v, i) -> {
                 deviceSelector.setItems(currentDeviceStatus.keySet());
                 deviceSelector.setValue(selectedDevice);

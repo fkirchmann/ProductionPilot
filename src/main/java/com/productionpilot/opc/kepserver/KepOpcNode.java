@@ -102,7 +102,9 @@ public class KepOpcNode implements OpcNode {
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof OpcNode otherNode) {
+        if (other instanceof KepOpcNode otherNode) {
+            return opcNode.equals(otherNode.opcNode);
+        } else if (other instanceof OpcNode otherNode) {
             return opcNode.equals(otherNode);
         } else {
             return false;
